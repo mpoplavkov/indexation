@@ -27,6 +27,14 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
         kmvStorage.put(term, new VersionedValue<>(value, version));
     }
 
+    // TODO: optimize
+    @Override
+    public void index(Iterable<Term> terms, V value) {
+        for (Term term : terms) {
+            index(term, value);
+        }
+    }
+
     @Override
     public void deleteAllValueOccurrences(V value) {
         allValues.remove(value); // TODO: think about the order

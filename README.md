@@ -11,3 +11,4 @@ JetBrains test assignment.
 - files filter
 - compaction for the index (garbage collection)
 - check all access modifiers
+- add logging

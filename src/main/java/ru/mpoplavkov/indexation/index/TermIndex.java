@@ -17,6 +17,15 @@ public interface TermIndex<V> {
     void index(Term term, V value);
 
     /**
+     * Append all given terms, associated with the given value
+     * to the index.
+     *
+     * @param terms given terms.
+     * @param value given value.
+     */
+    void index(Iterable<Term> terms, V value);
+
+    /**
      * Retrieves all values from the index that match the specified query.
      *
      * @param query given query.
