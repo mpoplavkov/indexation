@@ -7,9 +7,27 @@ import java.util.Set;
 
 public interface TextIndex<V> {
 
+    /**
+     * Append the given term, associated with the given value
+     * to the index.
+     *
+     * @param term  given term.
+     * @param value given value.
+     */
     void index(Term term, V value);
 
+    /**
+     * Retrieves all values from the index that match the specified query.
+     *
+     * @param query given query.
+     * @return matched values.
+     */
     Set<V> search(Query query);
 
+    /**
+     * Delete all occurrences of the given value from the index.
+     *
+     * @param value value to delete from the index.
+     */
     void deleteAllValueOccurrences(V value);
 }
