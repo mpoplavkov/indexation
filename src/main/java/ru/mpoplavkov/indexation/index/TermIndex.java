@@ -8,7 +8,7 @@ import java.util.Set;
 public interface TermIndex<V> {
 
     /**
-     * Append the given term, associated with the given value
+     * Appends the given term, associated with the given value
      * to the index.
      *
      * @param term  given term.
@@ -17,7 +17,7 @@ public interface TermIndex<V> {
     void index(Term term, V value);
 
     /**
-     * Append all given terms, associated with the given value
+     * Appends all given terms, associated with the given value
      * to the index.
      *
      * @param terms given terms.
@@ -34,7 +34,7 @@ public interface TermIndex<V> {
     Set<V> search(Query query);
 
     /**
-     * Delete all occurrences of the given value from the index.
+     * Deletes all occurrences of the given value from the index.
      *
      * @param value value to delete from the index.
      */
