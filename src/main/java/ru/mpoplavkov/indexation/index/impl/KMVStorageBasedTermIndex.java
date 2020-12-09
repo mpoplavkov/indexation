@@ -2,7 +2,7 @@ package ru.mpoplavkov.indexation.index.impl;
 
 import lombok.RequiredArgsConstructor;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
-import ru.mpoplavkov.indexation.index.TextIndex;
+import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.model.VersionedValue;
 import ru.mpoplavkov.indexation.model.query.*;
 import ru.mpoplavkov.indexation.model.term.Term;
@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class KMVStorageBasedTextIndex<V> implements TextIndex<V> {
+public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
     private final KeyMultiValueStorage<Term, VersionedValue<V>> kmvStorage;
     private final Map<V, Integer> valueVersions = new HashMap<>();

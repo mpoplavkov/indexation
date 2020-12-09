@@ -5,7 +5,7 @@ import ru.mpoplavkov.indexation.model.term.Term;
 
 import java.util.Set;
 
-public interface TextIndex<V> {
+public interface TermIndex<V> {
 
     /**
      * Append the given term, associated with the given value

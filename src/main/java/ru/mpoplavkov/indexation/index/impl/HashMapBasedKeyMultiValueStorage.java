@@ -9,6 +9,7 @@ import java.util.Set;
 
 public class HashMapBasedKeyMultiValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
+    // TODO: concurrent hash map?
     private final Map<K, Set<V>> storage = new HashMap<>();
 
     @Override
