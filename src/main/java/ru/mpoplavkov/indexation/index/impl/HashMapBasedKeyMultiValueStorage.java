@@ -22,6 +22,7 @@ public class HashMapBasedKeyMultiValueStorage<K, V> implements KeyMultiValueStor
         }
     }
 
+    // TODO: return a copy of the set? Or decorator. To forbid its' modification to users
     @Override
     public Set<V> get(K key) {
         return storage.computeIfAbsent(key, k -> Collections.emptySet());
