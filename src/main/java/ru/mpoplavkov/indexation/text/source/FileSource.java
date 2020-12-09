@@ -1,4 +1,4 @@
-package ru.mpoplavkov.indexation.model.source;
+package ru.mpoplavkov.indexation.text.source;
 
 import lombok.RequiredArgsConstructor;
 

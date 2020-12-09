@@ -1,4 +1,4 @@
-package ru.mpoplavkov.indexation.model.source;
+package ru.mpoplavkov.indexation.text.source;
 
 import java.io.IOException;
 import java.util.stream.Stream;
