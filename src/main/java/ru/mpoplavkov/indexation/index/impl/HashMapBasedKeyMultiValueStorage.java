@@ -2,7 +2,10 @@ package ru.mpoplavkov.indexation.index.impl;
 
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class HashMapBasedKeyMultiValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
@@ -22,9 +25,13 @@ public class HashMapBasedKeyMultiValueStorage<K, V> implements KeyMultiValueStor
         }
     }
 
-    // TODO: return a copy of the set? Or decorator. To forbid its' modification to users
     @Override
     public Set<V> get(K key) {
-        return storage.computeIfAbsent(key, k -> Collections.emptySet());
+        Set<V> resultSet = new HashSet<>();
+        Set<V> setFromTheStorage = storage.get(key);
+        if (setFromTheStorage != null) {
+            resultSet.addAll(setFromTheStorage);
+        }
+        return resultSet;
     }
 }
