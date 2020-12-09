@@ -2,7 +2,6 @@ package ru.mpoplavkov.indexation.trigger.impl;
 
 import lombok.RequiredArgsConstructor;
 import ru.mpoplavkov.indexation.index.TermIndex;
-import ru.mpoplavkov.indexation.model.fs.FileEvent;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
@@ -30,28 +29,21 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
 
     @Override
     public void onEvent(FileSystemEvent fileSystemEvent) {
-        if (fileSystemEvent instanceof FileEvent) {
-            FileEvent fileEvent = (FileEvent) fileSystemEvent;
-            Path file = fileEvent.getContext();
-            Source fileSource = new FileSource(file);
-            Iterable<Term> terms = termsExtractor.extractTerms(fileSource);
-            switch (fileEvent.getKind()) {
-                case FILE_CREATE:
-                    index.index(terms, file);
-                case FILE_DELETE:
-                    index.deleteAllValueOccurrences(file);
-                case FILE_UPDATE:
-                    index.deleteAllValueOccurrences(file);
-                    index.index(terms, file);
-                default:
-                    throw new UnsupportedOperationException(
-                            String.format("FileEvent kind '%s' is not supported", fileEvent.getKind())
-                    );
-            }
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format("FileSystemEvent '%s' is not supported", fileSystemEvent)
-            );
+        Path file = fileSystemEvent.getContext();
+        Source fileSource = new FileSource(file);
+        Iterable<Term> terms = termsExtractor.extractTerms(fileSource);
+        switch (fileSystemEvent.getKind()) {
+            case FILE_CREATE:
+                index.index(terms, file);
+            case FILE_DELETE:
+                index.deleteAllValueOccurrences(file);
+            case FILE_UPDATE:
+                index.deleteAllValueOccurrences(file);
+                index.index(terms, file);
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("FileEvent kind '%s' is not supported", fileSystemEvent.getKind())
+                );
         }
     }
 }
