@@ -1,10 +1,13 @@
 package ru.mpoplavkov.indexation.service.impl;
 
 import ru.mpoplavkov.indexation.index.TermIndex;
+import ru.mpoplavkov.indexation.index.impl.HashMapBasedKeyMultiValueStorage;
+import ru.mpoplavkov.indexation.index.impl.KMVStorageBasedTermIndex;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.service.FileSystemIndexService;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
+import ru.mpoplavkov.indexation.text.transformer.impl.IdTermsTransformer;
 import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.trigger.FileSystemEventListener;
 import ru.mpoplavkov.indexation.trigger.impl.FSEventListenerImpl;
@@ -31,28 +34,29 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
     private ExecutorService listenerExecutorService;
 
-    public FileSystemIndexServiceImpl(TermIndex<Path> index,
-                                      TermsExtractor termsExtractor,
-                                      TermsTransformer termsTransformer) throws IOException {
-        this.index = index;
+    public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
+                                      TermsTransformer termsTransformer,
+                                      int listenerThreadsCount) throws IOException {
         this.termsTransformer = termsTransformer;
 
+        index = new KMVStorageBasedTermIndex<>(new HashMapBasedKeyMultiValueStorage<>());
         FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, termsExtractor, termsTransformer);
         listener = new FSEventListenerImpl(trigger);
+
+        startListener(listenerThreadsCount);
     }
 
-    @Override
-    public boolean startListener(int parallelism) {
-        if (listenerExecutorService != null) {
-            return false;
-        }
+    public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
+                                      int listenerThreadsCount) throws IOException {
+        this(termsExtractor, new IdTermsTransformer(), listenerThreadsCount);
+    }
+
+    private void startListener(int parallelism) {
         listenerExecutorService = createListenerExecutorService(parallelism);
 
         for (int i = 0; i < parallelism; i++) {
             listenerExecutorService.execute(listener::listenLoop);
         }
-
-        return true;
     }
 
     @Override
@@ -80,7 +84,7 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
             @Override
             public Thread newThread(Runnable r) {
-                String threadName = String.format("trigger-thread-%d", count.incrementAndGet());
+                String threadName = String.format("listener-%d", count.incrementAndGet());
                 Thread thread = new Thread(r, threadName);
                 thread.setDaemon(true);
                 return thread;

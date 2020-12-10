@@ -9,8 +9,6 @@ import java.util.Set;
 
 public interface FileSystemIndexService extends Closeable {
 
-    boolean startListener(int parallelism);
-
     /**
      * Searches data in the index.
      *
