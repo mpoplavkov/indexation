@@ -63,18 +63,20 @@ public class FileSystemEventListener implements EventListener<Path> {
     }
 
     @Override
-    public void listenLoop() {
+    public void listenLoop() throws IOException {
         //noinspection InfiniteLoopStatement
         while (true) {
             waitForFSEventAndProcessIt();
         }
     }
 
-    private void processFSEvent(FileSystemEvent event) {
-        triggers.forEach(tr -> tr.onEvent(event));
+    private void processFSEvent(FileSystemEvent event) throws IOException {
+        for (FSEventTrigger trigger : triggers) {
+            trigger.onEvent(event);
+        }
     }
 
-    private void waitForFSEventAndProcessIt() {
+    private void waitForFSEventAndProcessIt() throws IOException {
         // wait for key to be signaled
         WatchKey key;
         try {

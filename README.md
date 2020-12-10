@@ -12,6 +12,7 @@ JetBrains test assignment.
 - compaction for the index (garbage collection)
 - check all access modifiers
 - add logging
+- copy files and directories before indexing
 
 ## Notes
 

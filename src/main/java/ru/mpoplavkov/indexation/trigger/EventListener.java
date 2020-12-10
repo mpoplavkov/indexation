@@ -5,7 +5,7 @@ import java.io.IOException;
 
 public interface EventListener<T> extends Closeable {
 
-    void listenLoop();
+    void listenLoop() throws IOException;
 
     void register(T eventSource) throws IOException;
 

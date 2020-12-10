@@ -9,6 +9,8 @@ import ru.mpoplavkov.indexation.text.source.FileSource;
 import ru.mpoplavkov.indexation.text.source.Source;
 import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -28,21 +30,31 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
     private final TermsExtractor termsExtractor;
 
     @Override
-    public void onEvent(FileSystemEvent fileSystemEvent) {
-        Path file = fileSystemEvent.getContext();
-        Source fileSource = new FileSource(file);
-        Iterable<Term> terms = termsExtractor.extractTerms(fileSource);
+    public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
+        Path path = fileSystemEvent.getContext();
         switch (fileSystemEvent.getKind()) {
             case FILE_CREATE:
-                index.index(file, terms);
+                indexFile(path);
             case FILE_UPDATE:
-                index.index(file, terms);
+                indexFile(path);
             case FILE_DELETE:
-                index.delete(file);
+                index.delete(path);
+            case DIRECTORY_CREATE:
+                Files.walk(path).forEach(this::indexFile);
             default:
                 throw new UnsupportedOperationException(
                         String.format("FileEvent kind '%s' is not supported", fileSystemEvent.getKind())
                 );
         }
+    }
+
+    private void indexFile(Path file) {
+        Iterable<Term> terms = termsFromFile(file);
+        index.index(file, terms);
+    }
+
+    private Iterable<Term> termsFromFile(Path file) {
+        Source fileSource = new FileSource(file);
+        return termsExtractor.extractTerms(fileSource);
     }
 }
