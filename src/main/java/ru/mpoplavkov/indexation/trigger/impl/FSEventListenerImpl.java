@@ -72,9 +72,12 @@ public class FSEventListenerImpl implements FileSystemEventListener {
     @SneakyThrows
     @Override
     public void listenLoop() {
-        //noinspection InfiniteLoopStatement
         while (true) {
-            waitForFSEventAndProcessIt();
+            try {
+                waitForFSEventAndProcessIt();
+            } catch (ClosedWatchServiceException e) {
+                break;
+            }
         }
     }
 
