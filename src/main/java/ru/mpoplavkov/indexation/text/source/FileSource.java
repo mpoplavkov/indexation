@@ -1,7 +1,5 @@
 package ru.mpoplavkov.indexation.text.source;
 
-import lombok.RequiredArgsConstructor;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,9 +9,17 @@ import java.util.stream.Stream;
 /**
  * Implementation of the source for text files.
  */
-@RequiredArgsConstructor
 public class FileSource implements Source {
     private final Path file;
+
+    public FileSource(Path file) {
+        if (Files.isDirectory(file)) {
+            throw new IllegalArgumentException(
+                    String.format("Cannot create a FileSource for directory '%s'", file)
+            );
+        }
+        this.file = file;
+    }
 
     /**
      * Retrieves all data from the source and returns it as a string.

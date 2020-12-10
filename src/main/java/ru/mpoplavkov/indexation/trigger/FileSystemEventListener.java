@@ -37,11 +37,14 @@ public class FileSystemEventListener implements EventListener<Path> {
 
     @Override
     public void register(Path path) throws IOException {
+        FileSystemEvent.Kind eventKind;
         if (Files.isDirectory(path)) {
+            eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
             // TODO: order, sync?
             WatchKey watchKey = path.register(watcher);
             trackedPaths.put(watchKey, path);
         } else {
+            eventKind = FileSystemEvent.Kind.FILE_CREATE;
             // TODO: order, sync?
             Path parent = path.getParent();
             WatchKey watchKey = parent.register(watcher);
@@ -50,7 +53,8 @@ public class FileSystemEventListener implements EventListener<Path> {
                     .computeIfAbsent(parent, p -> new HashSet<>());
             children.add(path);
         }
-        // TODO: add dir contents to the index
+        FileSystemEvent event = new FileSystemEvent(eventKind, path);
+        processFSEvent(event);
     }
 
     @Override
@@ -64,6 +68,10 @@ public class FileSystemEventListener implements EventListener<Path> {
         while (true) {
             waitForFSEventAndProcessIt();
         }
+    }
+
+    private void processFSEvent(FileSystemEvent event) {
+        triggers.forEach(tr -> tr.onEvent(event));
     }
 
     private void waitForFSEventAndProcessIt() {
@@ -96,7 +104,7 @@ public class FileSystemEventListener implements EventListener<Path> {
                     continue;
                 }
 
-                triggers.forEach(tr -> tr.onEvent(fsEvent));
+                processFSEvent(fsEvent);
             }
         }
 
