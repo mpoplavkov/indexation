@@ -47,13 +47,13 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         if (Files.isDirectory(path)) {
             eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
             // TODO: order, sync?
-            WatchKey watchKey = path.register(watcher);
+            WatchKey watchKey = registerPathToTheWatcher(path);
             trackedPaths.put(watchKey, path);
         } else {
             eventKind = FileSystemEvent.Kind.FILE_CREATE;
             // TODO: order, sync?
             Path parent = path.getParent();
-            WatchKey watchKey = parent.register(watcher);
+            WatchKey watchKey = registerPathToTheWatcher(parent);
             trackedPaths.put(watchKey, path);
             Set<Path> children = parentsResponsibleFofChildren
                     .computeIfAbsent(parent, p -> new HashSet<>());
@@ -137,6 +137,10 @@ public class FSEventListenerImpl implements FileSystemEventListener {
             );
         }
         return new FileSystemEvent(kind, changedFile);
+    }
+
+    private WatchKey registerPathToTheWatcher(Path path) throws IOException {
+        return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE, ENTRY_DELETE);
     }
 
 }
