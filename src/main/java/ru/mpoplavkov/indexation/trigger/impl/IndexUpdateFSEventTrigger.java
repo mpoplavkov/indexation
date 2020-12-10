@@ -7,11 +7,14 @@ import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.source.FileSource;
 import ru.mpoplavkov.indexation.text.source.Source;
+import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
 import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Trigger that updates underlying index in accordance with events.
@@ -28,6 +31,8 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
      * Specifies how to extract terms from files.
      */
     private final TermsExtractor termsExtractor;
+
+    private final TermsTransformer termsTransformer;
 
     @Override
     public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
@@ -50,7 +55,9 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
 
     private void indexFile(Path file) {
         Iterable<Term> terms = termsFromFile(file);
-        index.index(file, terms);
+        Set<Term> transformedTerms = new HashSet<>();
+        terms.forEach(t -> transformedTerms.add(termsTransformer.transform(t)));
+        index.index(file, transformedTerms);
     }
 
     private Iterable<Term> termsFromFile(Path file) {
