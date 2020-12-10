@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Trigger that updates underlying index in accordance with events.
@@ -45,7 +47,10 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
             case FILE_DELETE:
                 index.delete(path);
             case DIRECTORY_CREATE:
-                Files.walk(path).forEach(this::indexFile);
+                List<Path> allFiles = Files.walk(path).collect(Collectors.toList());
+                for (Path file : allFiles) {
+                    indexFile(file);
+                }
             default:
                 throw new UnsupportedOperationException(
                         String.format("FileEvent kind '%s' is not supported", fileSystemEvent.getKind())
@@ -53,14 +58,14 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
         }
     }
 
-    private void indexFile(Path file) {
-        Iterable<Term> terms = termsFromFile(file);
+    private void indexFile(Path file) throws IOException {
+        Set<Term> terms = termsFromFile(file);
         Set<Term> transformedTerms = new HashSet<>();
         terms.forEach(t -> transformedTerms.add(termsTransformer.transform(t)));
         index.index(file, transformedTerms);
     }
 
-    private Iterable<Term> termsFromFile(Path file) {
+    private Set<Term> termsFromFile(Path file) throws IOException {
         Source fileSource = new FileSource(file);
         return termsExtractor.extractTerms(fileSource);
     }
