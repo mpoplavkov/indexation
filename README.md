@@ -12,3 +12,7 @@ JetBrains test assignment.
 - compaction for the index (garbage collection)
 - check all access modifiers
 - add logging
+
+## Notes
+
+- it doesn't track deleted files and directories, so that if they will be recreated, they will no longer be indexed.
