@@ -34,12 +34,11 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
         Iterable<Term> terms = termsExtractor.extractTerms(fileSource);
         switch (fileSystemEvent.getKind()) {
             case FILE_CREATE:
-                index.index(terms, file);
-            case FILE_DELETE:
-                index.deleteAllValueOccurrences(file);
+                index.index(file, terms);
             case FILE_UPDATE:
-                index.deleteAllValueOccurrences(file);
-                index.index(terms, file);
+                index.index(file, terms);
+            case FILE_DELETE:
+                index.delete(file);
             default:
                 throw new UnsupportedOperationException(
                         String.format("FileEvent kind '%s' is not supported", fileSystemEvent.getKind())

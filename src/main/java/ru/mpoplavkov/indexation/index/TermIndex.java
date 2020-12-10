@@ -8,22 +8,15 @@ import java.util.Set;
 public interface TermIndex<V> {
 
     /**
-     * Appends the given term, associated with the given value
-     * to the index.
-     *
-     * @param term  given term.
-     * @param value given value.
-     */
-    void index(Term term, V value);
-
-    /**
      * Appends all given terms, associated with the given value
      * to the index.
+     * If this value was already indexed, than this works like
+     * reindex.
      *
-     * @param terms given terms.
      * @param value given value.
+     * @param terms given terms.
      */
-    void index(Iterable<Term> terms, V value);
+    void index(V value, Iterable<Term> terms);
 
     /**
      * Retrieves all values from the index that match the specified query.
@@ -38,5 +31,5 @@ public interface TermIndex<V> {
      *
      * @param value value to delete from the index.
      */
-    void deleteAllValueOccurrences(V value);
+    void delete(V value);
 }

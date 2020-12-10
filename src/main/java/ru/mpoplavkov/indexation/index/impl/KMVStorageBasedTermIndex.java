@@ -13,37 +13,74 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+// TODO: add the second implementation
 @RequiredArgsConstructor
 public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
+    /**
+     * The underlying storage. Stores values along with their versions.
+     */
     private final KeyMultiValueStorage<Term, VersionedValue<V>> kmvStorage;
-    private final Map<V, Integer> valueVersions = new HashMap<>();
+
+    /**
+     * Association between values and their actual versions in the storage.
+     * During the search, only values with actual versions are retrieved
+     * from the storage.
+     * If the value's version is negative, it means that the value has been
+     * deleted from the index (but possibly not from the storage).
+     */
+    private final Map<V, Integer> valueVersions = new HashMap<>(); // TODO: deal with version overflow
+
+    /**
+     * Set of all values, stored in the index.
+     */
     private final Set<V> allValues = new HashSet<>();
 
     @Override
-    public void index(Term term, V value) {
-        Integer version = valueVersions.computeIfAbsent(value, v -> 0);
-        allValues.add(value); // TODO: think about the order
-        kmvStorage.put(term, new VersionedValue<>(value, version));
-    }
-
-    // TODO: optimize
-    @Override
-    public void index(Iterable<Term> terms, V value) {
+    public void index(V value, Iterable<Term> terms) {
+        // TODO: think about the order
+        Integer version = valueVersions.compute(value, (v, oldVersion) -> incVersion(oldVersion));
+        allValues.add(value);
+        VersionedValue<V> versionedValue = new VersionedValue<>(value, version);
         for (Term term : terms) {
-            index(term, value);
+            kmvStorage.put(term, versionedValue);
         }
     }
 
+    /**
+     * Deletes all occurrences of the given value from the index.
+     * Just negates the version associated with the value in index, so
+     * that all the further lookups will not retrieve that value because
+     * of the version mismatch.
+     *
+     * @param value value to delete from the index.
+     */
     @Override
-    public void deleteAllValueOccurrences(V value) {
+    public void delete(V value) {
         allValues.remove(value); // TODO: think about the order
-        valueVersions.computeIfPresent(value, (k, v) -> v++);
+        valueVersions.computeIfPresent(value, (v, oldVersion) -> negateVersion(oldVersion));
     }
 
     @Override
     public Set<V> search(Query query) {
         return searchInternal(query);
+    }
+
+    private Integer incVersion(Integer oldVersion) {
+        if (oldVersion == null) {
+            return 1;
+        } else {
+            int absOldVersion = Math.abs(oldVersion);
+            return ++absOldVersion;
+        }
+    }
+
+    private Integer negateVersion(Integer oldVersion) {
+        if (oldVersion == null) {
+            return null;
+        } else {
+            return -Math.abs(oldVersion);
+        }
     }
 
     private boolean versionIsActual(VersionedValue<V> versionedValue) {
