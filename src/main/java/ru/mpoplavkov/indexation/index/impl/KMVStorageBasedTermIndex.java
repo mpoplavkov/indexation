@@ -68,7 +68,7 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
     private Integer incVersion(Integer oldVersion) {
         if (oldVersion == null) {
-            return 1;
+            return VersionedValue.INITIAL_VERSION;
         } else {
             int absOldVersion = Math.abs(oldVersion);
             return ++absOldVersion;

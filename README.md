@@ -1,7 +1,7 @@
 # Indexation
 JetBrains test assignment.
 
-## Things to imrove
+## Things to improve
 
 - implement TODOs
 - add terms transformer
@@ -13,6 +13,7 @@ JetBrains test assignment.
 - check all access modifiers
 - add logging
 - copy files and directories before indexing
+- improve tests quality using different junit features
 
 ## Notes
 
