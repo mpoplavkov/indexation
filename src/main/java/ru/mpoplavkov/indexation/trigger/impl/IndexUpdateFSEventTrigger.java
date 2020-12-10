@@ -41,16 +41,20 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
         Path path = fileSystemEvent.getContext();
         switch (fileSystemEvent.getKind()) {
             case FILE_CREATE:
-                indexFile(path);
             case FILE_UPDATE:
                 indexFile(path);
+                break;
             case FILE_DELETE:
                 index.delete(path);
+                break;
             case DIRECTORY_CREATE:
-                List<Path> allFiles = Files.walk(path).collect(Collectors.toList());
+                List<Path> allFiles = Files.walk(path)
+                        .filter(f -> !Files.isDirectory(f))
+                        .collect(Collectors.toList());
                 for (Path file : allFiles) {
                     indexFile(file);
                 }
+                break;
             default:
                 throw new UnsupportedOperationException(
                         String.format("FileEvent kind '%s' is not supported", fileSystemEvent.getKind())
