@@ -1,7 +1,10 @@
 package ru.mpoplavkov.indexation.model.query;
 
 import lombok.Data;
+import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
+
+import java.util.Set;
 
 @Data
 public class QueryWithUnaryOperator implements Query {
@@ -14,5 +17,10 @@ public class QueryWithUnaryOperator implements Query {
                 query.transform(termsTransformer),
                 operator
         );
+    }
+
+    @Override
+    public Set<Term> allUnderlyingTerms() {
+        return query.allUnderlyingTerms();
     }
 }

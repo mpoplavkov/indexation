@@ -14,6 +14,7 @@ JetBrains test assignment.
 - add logging
 - copy files and directories before indexing
 - improve tests quality using different junit features
+- go to the index once for each term
 
 ## Notes
 
