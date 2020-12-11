@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static ru.mpoplavkov.indexation.TestUtils.createSet;
+import static ru.mpoplavkov.indexation.model.query.util.QueryBuilder.*;
 
 class KMVStorageBasedTermIndexTest {
 
@@ -83,6 +84,73 @@ class KMVStorageBasedTermIndexTest {
                 () -> assertEquals(createSet(), searchByTerm(term1)),
                 () -> assertEquals(createSet(value1), searchByTerm(term2))
         );
+    }
+
+
+    @Test
+    public void shouldSearchByQueryWithOperatorAND() {
+        index.index(value1, createSet(term1, term2));
+        index.index(value2, createSet(term1));
+        index.index(value3, createSet(term2));
+
+        Query andQuery = and(exact(term1), exact(term2));
+        Set<String> actual = index.search(andQuery);
+        assertEquals(createSet(value1), actual);
+    }
+
+    @Test
+    public void shouldNotFindAnythingByANDQueryWithMissedTerm() {
+        index.index(value1, createSet(term1, term2));
+        index.index(value2, createSet(term1));
+        index.index(value3, createSet(term2));
+
+        Query andQuery = and(exact(term1), exact(term3));
+        Set<String> actual = index.search(andQuery);
+        assertEquals(createSet(), actual);
+    }
+
+    @Test
+    public void shouldSearchByQueryWithOperatorOR() {
+        index.index(value1, createSet(term1, term2));
+        index.index(value2, createSet(term1));
+        index.index(value3, createSet(term2));
+
+        Query orQuery = or(exact(term1), exact(term2));
+        Set<String> actual = index.search(orQuery);
+        assertEquals(createSet(value1, value2, value3), actual);
+    }
+
+    @Test
+    public void shouldFindValuesEvenIfThePartOfORQueryIsMissed() {
+        index.index(value1, createSet(term1, term2));
+        index.index(value2, createSet(term1));
+        index.index(value3, createSet(term2));
+
+        Query orQuery = or(exact(term1), exact(term3));
+        Set<String> actual = index.search(orQuery);
+        assertEquals(createSet(value1, value2), actual);
+    }
+
+    @Test
+    public void shouldSearchByQueryWithOperatorNOT() {
+        index.index(value1, createSet(term1, term2));
+        index.index(value2, createSet(term1));
+        index.index(value3, createSet(term2));
+
+        Query notQuery = not(exact(term1));
+        Set<String> actual = index.search(notQuery);
+        assertEquals(createSet(value3), actual);
+    }
+
+    @Test
+    public void shouldSearchByComplexQuery() {
+        index.index(value1, createSet(term1, term2));
+        index.index(value2, createSet(term1, term3));
+        index.index(value3, createSet(term2, term3));
+
+        Query complexQuery = or(not(exact(term1)), and(exact(term1), exact(term2)));
+        Set<String> actual = index.search(complexQuery);
+        assertEquals(createSet(value1, value3), actual);
     }
 
     private Set<String> searchByTerm(Term term) {

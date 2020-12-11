@@ -3,10 +3,10 @@ package ru.mpoplavkov.indexation.index.impl;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.model.VersionedValue;
-import ru.mpoplavkov.indexation.model.query.ExactTerm;
-import ru.mpoplavkov.indexation.model.query.Query;
+import ru.mpoplavkov.indexation.model.query.*;
 import ru.mpoplavkov.indexation.model.term.Term;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +31,11 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
     private final Map<V, Integer> valueVersions = new ConcurrentHashMap<>(); // TODO: deal with version overflow
 
     /**
+     * Set of all values, stored in the index.
+     */
+    private final Set<V> allValues = ConcurrentHashMap.newKeySet(); // TODO: replace with valueVersions.filter( > 0 )
+
+    /**
      * Atomically associates given terms with the value in the storage.
      *
      * @param value given value.
@@ -45,6 +50,7 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
         for (Term term : terms) {
             kmvStorage.put(term, versionedValue);
         }
+        allValues.add(value);
         valueVersions.put(value, newVersion);
     }
 
@@ -58,22 +64,13 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
      */
     @Override
     public void delete(V value) {
+        allValues.remove(value); // TODO: think about the order
         valueVersions.computeIfPresent(value, (v, oldVersion) -> negateVersion(oldVersion));
     }
 
     @Override
     public Set<V> search(Query query) {
-        if (query instanceof ExactTerm) {
-            ExactTerm exactTerm = (ExactTerm) query;
-            return kmvStorage.get(exactTerm.getTerm()).stream()
-                    .filter(this::versionIsActual)
-                    .map(VersionedValue::getValue)
-                    .collect(Collectors.toSet());
-        }
-
-        throw new UnsupportedOperationException(
-                String.format("Query '%s' is not supported", query)
-        );
+        return searchInternal(query);
     }
 
     private Integer incVersion(Integer oldVersion) {
@@ -99,5 +96,53 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
             return false;
         }
         return versionedValue.getVersion() == actualVersion;
+    }
+
+    // TODO: get rid of recursion
+    private Set<V> searchInternal(Query query) {
+        if (query instanceof ExactTerm) {
+            ExactTerm exactTerm = (ExactTerm) query;
+            return kmvStorage.get(exactTerm.getTerm()).stream()
+                    .filter(this::versionIsActual)
+                    .map(VersionedValue::getValue)
+                    .collect(Collectors.toSet());
+        }
+        if (query instanceof QueryWithUnaryOperator) {
+            QueryWithUnaryOperator queryWithUnaryOperator = (QueryWithUnaryOperator) query;
+            Set<V> queryResult = searchInternal(queryWithUnaryOperator.getQuery());
+            UnaryOperator operator = queryWithUnaryOperator.getOperator();
+            switch (operator) {
+                case NOT:
+                    Set<V> values = new HashSet<>(allValues);
+                    values.removeAll(queryResult);
+                    return values;
+                default:
+                    throw new UnsupportedOperationException(
+                            String.format("Unary operator '%s' is not supported", operator)
+                    );
+            }
+        }
+        if (query instanceof QueryWithBinaryOperator) {
+            QueryWithBinaryOperator queryWithBinaryOperator = (QueryWithBinaryOperator) query;
+            Set<V> leftQueryResult = searchInternal(queryWithBinaryOperator.getLeft());
+            Set<V> rightQueryResult = searchInternal(queryWithBinaryOperator.getRight());
+            BinaryOperator operator = queryWithBinaryOperator.getOperator();
+            switch (operator) {
+                case AND:
+                    leftQueryResult.retainAll(rightQueryResult);
+                    return leftQueryResult;
+                case OR:
+                    leftQueryResult.addAll(rightQueryResult);
+                    return leftQueryResult;
+                default:
+                    throw new UnsupportedOperationException(
+                            String.format("Binary operator '%s' is not supported", operator)
+                    );
+            }
+        }
+
+        throw new UnsupportedOperationException(
+                String.format("Query '%s' is not supported", query)
+        );
     }
 }
