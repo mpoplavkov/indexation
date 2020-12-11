@@ -3,7 +3,6 @@ package ru.mpoplavkov.indexation.index.impl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.mpoplavkov.indexation.index.StorageType;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.model.query.ExactTerm;
 import ru.mpoplavkov.indexation.model.query.Query;
@@ -31,7 +30,7 @@ class KMVStorageBasedTermIndexTest {
 
     @BeforeEach
     public void init() {
-        index = new KMVStorageBasedTermIndex<>(StorageType.CONCURRENT_HASH_MAP_BASED);
+        index = new KMVStorageBasedTermIndex<>();
     }
 
     // TODO: generify tests ?

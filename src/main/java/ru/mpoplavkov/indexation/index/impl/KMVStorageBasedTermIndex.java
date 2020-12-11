@@ -1,8 +1,6 @@
 package ru.mpoplavkov.indexation.index.impl;
 
-import lombok.RequiredArgsConstructor;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
-import ru.mpoplavkov.indexation.index.StorageType;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.model.VersionedValue;
 import ru.mpoplavkov.indexation.model.query.*;
@@ -12,17 +10,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 // TODO: add the second implementation
 public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
-    // TODO: replace this with kind of the storage in constructor
     /**
      * The underlying storage. Stores values along with their versions.
      */
-    private final KeyMultiValueStorage<Term, VersionedValue<V>> kmvStorage;
+    private final KeyMultiValueStorage<Term, VersionedValue<V>> kmvStorage =
+            new ConcurrentHashMapBasedKeyMultiValueStorage<>();
 
     /**
      * Association between values and their actual versions in the storage.
@@ -37,15 +34,6 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
      * Set of all values, stored in the index.
      */
     private final Set<V> allValues = new HashSet<>();
-
-    public KMVStorageBasedTermIndex(StorageType storageType) {
-        kmvStorage = storageSupplier.get(storageType).get();
-    }
-
-    private final Map<StorageType, Supplier<KeyMultiValueStorage<Term, VersionedValue<V>>>> storageSupplier = new HashMap<>();
-    {
-        storageSupplier.put(StorageType.CONCURRENT_HASH_MAP_BASED, ConcurrentHashMapBasedKeyMultiValueStorage::new);
-    }
 
     @Override
     public void index(V value, Iterable<Term> terms) {
