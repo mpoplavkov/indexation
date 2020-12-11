@@ -9,14 +9,17 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SplitBySpaceTermsExtractor implements TermsExtractor {
     @Override
     public Set<Term> extractTerms(Source s) throws IOException {
-        return s.lines()
-                .flatMap(str -> Arrays.stream(str.split("\\s")))
-                .filter(str -> !str.isEmpty())
-                .map(WordTerm::new)
-                .collect(Collectors.toSet());
+        try (Stream<String> lines = s.lines()) {
+            return lines
+                    .flatMap(str -> Arrays.stream(str.split("\\s")))
+                    .filter(str -> !str.isEmpty())
+                    .map(WordTerm::new)
+                    .collect(Collectors.toSet());
+        }
     }
 }
