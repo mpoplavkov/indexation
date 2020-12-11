@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
+    // TODO: replace this with kind of the storage in constructor
     /**
      * The underlying storage. Stores values along with their versions.
      */
