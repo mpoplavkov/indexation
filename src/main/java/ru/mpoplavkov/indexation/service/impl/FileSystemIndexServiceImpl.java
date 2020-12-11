@@ -1,17 +1,19 @@
 package ru.mpoplavkov.indexation.service.impl;
 
+import ru.mpoplavkov.indexation.filter.FileFilter;
+import ru.mpoplavkov.indexation.filter.impl.TextFileFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.index.impl.HashMapBasedKeyMultiValueStorage;
 import ru.mpoplavkov.indexation.index.impl.KMVStorageBasedTermIndex;
+import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
+import ru.mpoplavkov.indexation.listener.impl.FSEventListenerImpl;
+import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFSEventTrigger;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.service.FileSystemIndexService;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
 import ru.mpoplavkov.indexation.text.transformer.impl.IdTermsTransformer;
-import ru.mpoplavkov.indexation.listener.FSEventTrigger;
-import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
-import ru.mpoplavkov.indexation.listener.impl.FSEventListenerImpl;
-import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFSEventTrigger;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -36,11 +38,12 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
     public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
                                       TermsTransformer termsTransformer,
+                                      FileFilter fileFilter,
                                       int listenerThreadsCount) throws IOException {
         this.termsTransformer = termsTransformer;
 
         index = new KMVStorageBasedTermIndex<>(new HashMapBasedKeyMultiValueStorage<>());
-        FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, termsExtractor, termsTransformer);
+        FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, fileFilter, termsExtractor, termsTransformer);
         listener = new FSEventListenerImpl(trigger);
 
         startListener(listenerThreadsCount);
@@ -48,7 +51,7 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
     public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
                                       int listenerThreadsCount) throws IOException {
-        this(termsExtractor, new IdTermsTransformer(), listenerThreadsCount);
+        this(termsExtractor, new IdTermsTransformer(), new TextFileFilter(), listenerThreadsCount);
     }
 
     private void startListener(int parallelism) {

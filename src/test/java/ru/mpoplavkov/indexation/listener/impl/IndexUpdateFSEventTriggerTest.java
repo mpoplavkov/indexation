@@ -1,6 +1,7 @@
 package ru.mpoplavkov.indexation.listener.impl;
 
 import org.junit.jupiter.api.Test;
+import ru.mpoplavkov.indexation.filter.FileFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
@@ -23,7 +24,8 @@ class IndexUpdateFSEventTriggerTest {
     TermIndex<Path> index = mock(TermIndex.class);
     TermsExtractor extractor = mock(TermsExtractor.class);
     TermsTransformer transformer = mock(TermsTransformer.class);
-    FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, extractor, transformer);
+    FileFilter fileFilter = mock(FileFilter.class);
+    FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, fileFilter, extractor, transformer);
 
     Path file = getFilePathFromResources("text/empty_file.txt");
     Path dir = getFilePathFromResources("text/directory_with_two_files");
@@ -33,12 +35,10 @@ class IndexUpdateFSEventTriggerTest {
     Term term1 = new WordTerm("term1");
     Term term2 = new WordTerm("term2");
 
-    IndexUpdateFSEventTriggerTest() throws IOException {
-    }
-
     @Test
     public void shouldCorrectlyReactOnCreateFileEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_CREATE, file);
+        when(fileFilter.filter(any())).thenReturn(true);
         when(extractor.extractTerms(any())).thenReturn(createSet(term1));
         when(transformer.transform(term1)).thenReturn(term2);
         trigger.onEvent(event);
@@ -49,6 +49,7 @@ class IndexUpdateFSEventTriggerTest {
     @Test
     public void shouldCorrectlyReactOnUpdateFileEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_UPDATE, file);
+        when(fileFilter.filter(any())).thenReturn(true);
         when(extractor.extractTerms(any())).thenReturn(createSet(term1));
         when(transformer.transform(term1)).thenReturn(term2);
         trigger.onEvent(event);
@@ -59,6 +60,7 @@ class IndexUpdateFSEventTriggerTest {
     @Test
     public void shouldCorrectlyReactOnDeleteFileEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_DELETE, file);
+        when(fileFilter.filter(any())).thenReturn(true);
         trigger.onEvent(event);
         verify(index).delete(file);
     }
@@ -66,12 +68,24 @@ class IndexUpdateFSEventTriggerTest {
     @Test
     public void shouldCorrectlyReactOnCreateDirectoryEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.DIRECTORY_CREATE, dir);
+        when(fileFilter.filter(any())).thenReturn(true);
         when(extractor.extractTerms(any())).thenReturn(createSet(term1));
         when(transformer.transform(term1)).thenReturn(term2);
         trigger.onEvent(event);
 
         verify(index).index(file1InsideDir, createSet(term2));
         verify(index).index(file2InsideDir, createSet(term2));
+    }
+
+    @Test
+    public void shouldNotReactOnUninterestingFiles() throws IOException {
+        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_CREATE, file);
+        when(fileFilter.filter(any())).thenReturn(false);
+        trigger.onEvent(event);
+
+        verifyNoInteractions(extractor);
+        verifyNoInteractions(transformer);
+        verifyNoInteractions(index);
     }
 
 }

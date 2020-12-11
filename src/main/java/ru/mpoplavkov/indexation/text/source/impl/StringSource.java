@@ -1,6 +1,7 @@
-package ru.mpoplavkov.indexation.text.source;
+package ru.mpoplavkov.indexation.text.source.impl;
 
 import lombok.Data;
+import ru.mpoplavkov.indexation.text.source.Source;
 
 import java.util.Arrays;
 import java.util.stream.Stream;

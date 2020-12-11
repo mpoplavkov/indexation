@@ -1,4 +1,6 @@
-package ru.mpoplavkov.indexation.text.source;
+package ru.mpoplavkov.indexation.text.source.impl;
+
+import ru.mpoplavkov.indexation.text.source.Source;
 
 import java.io.IOException;
 import java.nio.file.Files;

@@ -5,7 +5,7 @@ import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.model.term.WordTerm;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.source.Source;
-import ru.mpoplavkov.indexation.text.source.StringSource;
+import ru.mpoplavkov.indexation.text.source.impl.StringSource;
 
 import java.io.IOException;
 import java.util.Set;

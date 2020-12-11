@@ -1,6 +1,7 @@
 package ru.mpoplavkov.indexation.text.source;
 
 import org.junit.jupiter.api.Test;
+import ru.mpoplavkov.indexation.text.source.impl.FileSource;
 
 import java.io.IOException;
 import java.nio.file.Path;
