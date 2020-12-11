@@ -18,3 +18,7 @@ JetBrains test assignment.
 ## Notes
 
 - it doesn't track deleted files and directories, so that if they will be recreated, they will no longer be indexed.
+
+## Possible features
+
+- add consistency for complex queries to the index, such that each part of the query executes on the same snapshot of the index.
