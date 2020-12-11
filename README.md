@@ -6,7 +6,7 @@ JetBrains test assignment.
 - implement TODOs
 - add terms transformer
 - make it all type safe
-- tests
+- tests (event listener, index service)
 - docs
 - files filter
 - compaction for the index (garbage collection)
