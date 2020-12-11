@@ -1,4 +1,4 @@
-package ru.mpoplavkov.indexation.trigger.impl;
+package ru.mpoplavkov.indexation.listener.impl;
 
 import lombok.RequiredArgsConstructor;
 import ru.mpoplavkov.indexation.index.TermIndex;
@@ -8,7 +8,7 @@ import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.source.FileSource;
 import ru.mpoplavkov.indexation.text.source.Source;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
-import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
+import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 
 import java.io.IOException;
 import java.nio.file.Files;

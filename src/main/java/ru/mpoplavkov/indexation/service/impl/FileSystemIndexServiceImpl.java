@@ -8,10 +8,10 @@ import ru.mpoplavkov.indexation.service.FileSystemIndexService;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
 import ru.mpoplavkov.indexation.text.transformer.impl.IdTermsTransformer;
-import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
-import ru.mpoplavkov.indexation.trigger.FileSystemEventListener;
-import ru.mpoplavkov.indexation.trigger.impl.FSEventListenerImpl;
-import ru.mpoplavkov.indexation.trigger.impl.IndexUpdateFSEventTrigger;
+import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
+import ru.mpoplavkov.indexation.listener.impl.FSEventListenerImpl;
+import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFSEventTrigger;
 
 import java.io.IOException;
 import java.nio.file.Path;

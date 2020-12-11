@@ -1,4 +1,4 @@
-package ru.mpoplavkov.indexation.trigger;
+package ru.mpoplavkov.indexation.listener;
 
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 

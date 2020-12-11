@@ -1,4 +1,4 @@
-package ru.mpoplavkov.indexation.trigger;
+package ru.mpoplavkov.indexation.listener;
 
 import java.io.Closeable;
 import java.io.IOException;

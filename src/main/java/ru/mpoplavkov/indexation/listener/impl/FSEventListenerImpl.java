@@ -1,9 +1,9 @@
-package ru.mpoplavkov.indexation.trigger.impl;
+package ru.mpoplavkov.indexation.listener.impl;
 
 import lombok.SneakyThrows;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
-import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
-import ru.mpoplavkov.indexation.trigger.FileSystemEventListener;
+import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
 
 import java.io.IOException;
 import java.nio.file.*;
