@@ -30,7 +30,7 @@ class KMVStorageBasedTermIndexTest {
 
     @BeforeEach
     public void init() {
-        index = new KMVStorageBasedTermIndex<>(new HashMapBasedKeyMultiValueStorage<>());
+        index = new KMVStorageBasedTermIndex<>(new ConcurrentHashMapBasedKeyMultiValueStorage<>());
     }
 
     // TODO: generify tests ?

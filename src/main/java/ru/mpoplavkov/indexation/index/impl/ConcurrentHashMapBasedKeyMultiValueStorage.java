@@ -2,15 +2,14 @@ package ru.mpoplavkov.indexation.index.impl;
 
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class HashMapBasedKeyMultiValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
+public class ConcurrentHashMapBasedKeyMultiValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
-    // TODO: concurrent hash map?
-    private final Map<K, Set<V>> storage = new HashMap<>();
+    private final Map<K, Set<V>> storage = new ConcurrentHashMap<>();
 
     @Override
     public void put(K key, V value) {
