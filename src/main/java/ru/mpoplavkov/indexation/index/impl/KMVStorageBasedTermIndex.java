@@ -6,10 +6,10 @@ import ru.mpoplavkov.indexation.model.VersionedValue;
 import ru.mpoplavkov.indexation.model.query.*;
 import ru.mpoplavkov.indexation.model.term.Term;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 // TODO: add the second implementation
@@ -28,26 +28,34 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
      * If the value's version is negative, it means that the value has been
      * deleted from the index (but possibly not from the storage).
      */
-    private final Map<V, Integer> valueVersions = new HashMap<>(); // TODO: deal with version overflow
+    private final Map<V, Integer> valueVersions = new ConcurrentHashMap<>(); // TODO: deal with version overflow
 
     /**
      * Set of all values, stored in the index.
      */
-    private final Set<V> allValues = new HashSet<>();
+    private final Set<V> allValues = ConcurrentHashMap.newKeySet(); // TODO: replace with valueVersions.filter( > 0 )
 
+    /**
+     * Atomically associates given terms with the value in the storage.
+     *
+     * @param value given value.
+     * @param terms given terms.
+     */
     @Override
     public void index(V value, Iterable<Term> terms) {
         // TODO: think about the order
-        Integer version = valueVersions.compute(value, (v, oldVersion) -> incVersion(oldVersion));
-        allValues.add(value);
-        VersionedValue<V> versionedValue = new VersionedValue<>(value, version);
+        Integer oldVersion = valueVersions.get(value);
+        Integer newVersion = incVersion(oldVersion);
+        VersionedValue<V> versionedValue = new VersionedValue<>(value, newVersion);
         for (Term term : terms) {
             kmvStorage.put(term, versionedValue);
         }
+        allValues.add(value);
+        valueVersions.put(value, newVersion);
     }
 
     /**
-     * Deletes all occurrences of the given value from the index.
+     * Atomically deletes all occurrences of the given value from the index.
      * Just negates the version associated with the value in index, so
      * that all the further lookups will not retrieve that value because
      * of the version mismatch.
