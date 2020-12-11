@@ -1,16 +1,19 @@
 package ru.mpoplavkov.indexation.listener.impl;
 
 import lombok.SneakyThrows;
-import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
+import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
+import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import java.util.logging.Level;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
+@Log
 public class FSEventListenerImpl implements FileSystemEventListener {
 
     private final WatchService watcher;
@@ -82,6 +85,7 @@ public class FSEventListenerImpl implements FileSystemEventListener {
     }
 
     private void processFSEvent(FileSystemEvent event) throws IOException {
+        log.log(Level.INFO, "Processing event [{0}]", event);
         for (FSEventTrigger trigger : triggers) {
             trigger.onEvent(event);
         }
@@ -98,6 +102,7 @@ public class FSEventListenerImpl implements FileSystemEventListener {
 
         Path dir = trackedPaths.get(key);
         if (dir != null) {
+            log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
             List<WatchEvent<?>> events = key.pollEvents();
             for (WatchEvent<?> event : events) {
                 WatchEvent.Kind<?> kind = event.kind();
@@ -127,6 +132,7 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         if (!valid) {
             trackedPaths.remove(key);
             if (dir != null) {
+                log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
                 parentsResponsibleFofChildren.remove(dir);
             }
         }
