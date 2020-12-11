@@ -86,7 +86,6 @@ class KMVStorageBasedTermIndexTest {
         );
     }
 
-
     @Test
     public void shouldSearchByQueryWithOperatorAND() {
         index.index(value1, createSet(term1, term2));

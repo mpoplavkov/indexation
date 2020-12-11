@@ -5,9 +5,6 @@ import lombok.Data;
 import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
 
-import java.util.HashSet;
-import java.util.Set;
-
 @Data
 public class ExactTerm implements Query {
 
