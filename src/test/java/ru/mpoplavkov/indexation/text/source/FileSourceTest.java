@@ -3,6 +3,7 @@ package ru.mpoplavkov.indexation.text.source;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,25 +16,24 @@ class FileSourceTest {
 
     @Test
     public void shouldExtractContentsFromAnEmptyFile() throws IOException {
-        String filePath = "source/empty_file.txt";
-        Source source = new FileSource(getFilePathFromResources(filePath));
+        Source source = new FileSource(getFilePathFromResources("text/empty_file.txt"));
         assertEquals("", source.stringData());
     }
 
     @Test
     public void shouldExtractContentsFromNonEmptyFile() throws IOException {
-        String filePath = "source/some_text_file.txt";
-        Source source = new FileSource(getFilePathFromResources(filePath));
-        String expected = getFileContentFromResources(filePath);
+        Path file = getFilePathFromResources("text/some_text_file.txt");
+        Source source = new FileSource(file);
+        String expected = getFileContentFromResources(file);
         assertEquals(expected, source.stringData());
     }
 
     @Test
     public void shouldExtractStreamOfLinesFromNonEmptyFile() throws IOException {
-        String filePath = "source/some_text_file.txt";
-        Source source = new FileSource(getFilePathFromResources(filePath));
+        Path file = getFilePathFromResources("text/some_text_file.txt");
+        Source source = new FileSource(file);
         List<String> actual = source.lines().collect(Collectors.toList());
-        List<String> expected = Arrays.asList(getFileContentFromResources(filePath).split("\n"));
+        List<String> expected = Arrays.asList(getFileContentFromResources(file).split("\n"));
         assertEquals(expected, actual);
     }
 

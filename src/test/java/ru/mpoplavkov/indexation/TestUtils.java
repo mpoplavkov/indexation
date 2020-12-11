@@ -26,6 +26,10 @@ public abstract class TestUtils {
 
     public static String getFileContentFromResources(String path) throws IOException {
         Path file = getFilePathFromResources(path);
+        return getFileContentFromResources(file);
+    }
+
+    public static String getFileContentFromResources(Path file) throws IOException {
         byte[] bytes = Files.readAllBytes(file);
         return new String(bytes);
     }
