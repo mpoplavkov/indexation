@@ -99,6 +99,8 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
     }
 
     // TODO: get rid of recursion
+    // TODO: get rid of switches
+    // TODO: go to the index once for each term (optimization). Use `query.allUnderlyingTerms()`
     private Set<V> searchInternal(Query query) {
         if (query instanceof ExactTerm) {
             ExactTerm exactTerm = (ExactTerm) query;
