@@ -13,8 +13,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// TODO: add the second implementation
-public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
+/**
+ * Term index based on the storage of values along with their versions.
+ * Each update operation changes the value's version. The version
+ * correspondence is checked when values are retrieved.
+ *
+ * @param <V> type of value to be stored in the index.
+ */
+public class VersionedTermIndex<V> implements TermIndex<V> {
 
     /**
      * The underlying storage. Stores values along with their versions.
@@ -33,6 +39,10 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
     /**
      * Atomically associates given terms with the value in the storage.
+     * The indexed value will only become visible only after a new version
+     * of that value is inserted into the
+     * {@link VersionedTermIndex#valueVersions}, which is the last
+     * operation in this method.
      *
      * @param value given value.
      * @param terms given terms.
@@ -61,6 +71,44 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
         valueVersions.computeIfPresent(value, (v, oldVersion) -> negateVersion(oldVersion));
     }
 
+    /**
+     * Retrieves all values from the index that match the specified query.
+     * Since multiple versions of the same value are stored in the storage,
+     * filtering is applied to the result of the storage query.
+     * <br><br>
+     * It would be wrong to filter result of the storage query using
+     * {@link VersionedTermIndex#valueVersions}, because between the
+     * retrieving the result from the storage and obtaining versions from
+     * {@link VersionedTermIndex#valueVersions}, this map potentially
+     * could be changed.
+     * In this case, the following order of events is possible:
+     * <ol>
+     *     <li>storage returns <i>value1</i> along with the <i>version1</i>
+     *     as a result of the <i>query</i>;</li>
+     *     <li><i>value1</i> is reindexed, so that it still falls under the
+     *     conditions of the <i>query</i>;</li>
+     *     <li>{@link VersionedTermIndex#valueVersions} for the given
+     *     <i>value1</i> contains already the next version - <i>version2</i>;
+     *     </li>
+     *     <li>since the result from the first step contains only non actual
+     *     version of the <i>value1</i> (<i>version1</i>, when version
+     *     <i>version2</i> is actual), <i>value1</i> would not be returned as
+     *     a result of the select method, even though both versions of this
+     *     value satisfy the <i>query</i>.</li>
+     * </ol>
+     * Therefore this is necessary to obtain a snapshot of actual value versions
+     * before executing a request to the storage.
+     * <br><br>
+     * Current implementation executes two identical requests to the storage.
+     * The first request is for identifying a set of values, that match to
+     * the given query regardless of their version. Versions of these values are
+     * then taken from the {@link VersionedTermIndex#valueVersions}. That
+     * is how the snapshot of versions is made. This snapshot is used then to
+     * filter the result of the second request.
+     *
+     * @param query given query.
+     * @return matched values.
+     */
     @Override
     public Set<V> search(Query query) {
         if (query instanceof ExactTerm) {
@@ -69,10 +117,11 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
             Set<VersionedValue<V>> firstQueryResult = kmvStorage.get(termToSearch);
 
-            Set<VersionedValue<V>> interestingVersionedValues =
+            Set<VersionedValue<V>> versionsSnapshot =
                     firstQueryResult
                             .stream()
                             .map(VersionedValue::getValue)
+                            .distinct()
                             .flatMap(this::withActualVersion)
                             .collect(Collectors.toSet());
 
@@ -80,7 +129,7 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
 
             return secondQueryResult
                     .stream()
-                    .filter(interestingVersionedValues::contains)
+                    .filter(versionsSnapshot::contains)
                     .map(VersionedValue::getValue)
                     .collect(Collectors.toSet());
         }
@@ -101,11 +150,7 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
     }
 
     private Long negateVersion(Long oldVersion) {
-        if (oldVersion == null) {
-            return null;
-        } else {
-            return -Math.abs(oldVersion);
-        }
+        return oldVersion == null ? null : -Math.abs(oldVersion);
     }
 
     private Stream<VersionedValue<V>> withActualVersion(V value) {

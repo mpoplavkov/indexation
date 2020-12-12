@@ -14,7 +14,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static ru.mpoplavkov.indexation.TestUtils.createSet;
 
-class KMVStorageBasedTermIndexTest {
+class VersionedTermIndexTest {
 
     TermIndex<String> index;
 
@@ -29,7 +29,7 @@ class KMVStorageBasedTermIndexTest {
 
     @BeforeEach
     public void init() {
-        index = new KMVStorageBasedTermIndex<>();
+        index = new VersionedTermIndex<>();
     }
 
     // TODO: generify tests ?

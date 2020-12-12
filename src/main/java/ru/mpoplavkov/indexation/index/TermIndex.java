@@ -5,6 +5,11 @@ import ru.mpoplavkov.indexation.model.term.Term;
 
 import java.util.Set;
 
+/**
+ * Term based index of values.
+ *
+ * @param <V> type of value to be stored in the index.
+ */
 public interface TermIndex<V> {
 
     /**
