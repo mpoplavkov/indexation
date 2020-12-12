@@ -32,6 +32,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * Association between values and their actual versions in the storage.
      * During the search, only values with actual versions are retrieved
      * from the storage.
+     * <br>
      * If the value's version is negative, it means that the value has been
      * deleted from the index (but possibly not from the storage).
      */
@@ -43,6 +44,10 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * of that value is inserted into the
      * {@link VersionedTermIndex#valueVersions}, which is the last
      * operation in this method.
+     * <br>
+     * Only one parallel update for the concrete value is allowed. If two
+     * or more threads will index the same value, then the behaviour is
+     * not determined.
      *
      * @param value given value.
      * @param terms given terms.

@@ -15,6 +15,7 @@ public interface TermIndex<V> {
     /**
      * Appends all given terms, associated with the given value
      * to the index.
+     * <br>
      * If this value was already indexed, than this works like
      * reindex.
      *
