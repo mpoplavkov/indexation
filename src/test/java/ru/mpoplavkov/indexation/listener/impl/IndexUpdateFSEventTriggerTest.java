@@ -78,7 +78,7 @@ class IndexUpdateFSEventTriggerTest {
     }
 
     @Test
-    public void shouldNotReactOnUninterestingFiles() throws IOException {
+    public void shouldNotReactOnUninterestingPaths() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, file);
         when(pathFilter.filter(any())).thenReturn(false);
         trigger.onEvent(event);
