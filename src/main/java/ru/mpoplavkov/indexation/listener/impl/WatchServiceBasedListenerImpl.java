@@ -19,13 +19,21 @@ import java.util.logging.Level;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
+/**
+ * Implementation of {@link FileSystemEventListener}, based on the
+ * {@link WatchService}. Takes care about processing the events for
+ * a particular path at any time exclusively by only one thread.
+ */
 @Log
-public class FSEventListenerImpl implements FileSystemEventListener {
+public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
 
     private final WatchService watcher;
     private final List<FSEventTrigger> triggers;
     private final FileFilter fileFilter;
 
+    /**
+     * Mapping from watch keys to the paths tracked by those keys.
+     */
     private final Map<WatchKey, Path> trackedDirs = new ConcurrentHashMap<>();
 
     /**
@@ -36,6 +44,9 @@ public class FSEventListenerImpl implements FileSystemEventListener {
      */
     private final Map<Path, Set<Path>> parentsResponsibleFofChildren = new ConcurrentHashMap<>();
 
+    /**
+     * Mapping between {@link WatchEvent.Kind} and {@link FileSystemEvent.Kind}.
+     */
     private static final Map<WatchEvent.Kind<Path>, FileSystemEvent.Kind> EVENT_KINDS_MAP =
             ImmutableMap.of(
                     ENTRY_CREATE, FileSystemEvent.Kind.FILE_CREATE,
@@ -43,17 +54,34 @@ public class FSEventListenerImpl implements FileSystemEventListener {
                     ENTRY_DELETE, FileSystemEvent.Kind.FILE_DELETE
             );
 
-    public FSEventListenerImpl(FileFilter fileFilter, FSEventTrigger... triggers) throws IOException {
+    /**
+     * Creates the listener.
+     *
+     * @param fileFilter filter for files to check while registration and processing.
+     * @param triggers   triggers to apply for found events.
+     * @throws IOException if an I/O error occurs.
+     */
+    public WatchServiceBasedListenerImpl(FileFilter fileFilter, FSEventTrigger... triggers) throws IOException {
         this.fileFilter = fileFilter;
         this.triggers = Arrays.asList(triggers);
         watcher = FileSystems.getDefault().newWatchService();
     }
 
+    /**
+     * Records information about the path to track and processes the
+     * path in the same way as if it was just created in the file system.
+     *
+     * @param path the path to register.
+     * @return true iff the path passed the filter, false otherwise.
+     * @throws IOException if an I/O error occurs.
+     */
     @Override
     public boolean register(Path path) throws IOException {
         FileSystemEvent.Kind eventKind;
         Path directoryToRegister;
         if (Files.isDirectory(path)) {
+            // TODO: walk through directory and register all it's subdirectories
+            //  to allow them to be processed concurrently
             parentsResponsibleFofChildren.remove(path);
             eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
             directoryToRegister = path;
@@ -73,17 +101,28 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         WatchKey watchKey = registerPathToTheWatcher(directoryToRegister);
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (watchKey) {
+            // events, associated with the watch key must be processed
+            // exclusively by one thread.
             trackedDirs.put(watchKey, directoryToRegister);
             processFSEvent(event);
         }
         return true;
     }
 
+    /**
+     * Closes the underlying {@link WatchService}. This will also cause
+     * cancellation of all the listen loops, associated with this listener.
+     *
+     * @throws IOException if an I/O error occurs.
+     */
     @Override
     public void close() throws IOException {
         watcher.close();
     }
 
+    /**
+     * Waits for events and processes them until the listener is cancelled.
+     */
     // TODO: think what to do in case of an error
     @SneakyThrows
     @Override
@@ -97,6 +136,12 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         }
     }
 
+    /**
+     * Passes the event to all triggers, associated with the listener.
+     *
+     * @param event occurred event.
+     * @throws IOException if an I/O error occurs.
+     */
     private void processFSEvent(FileSystemEvent event) throws IOException {
         log.log(Level.INFO, "Processing event [{0}]", event);
         for (FSEventTrigger trigger : triggers) {
@@ -104,6 +149,12 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         }
     }
 
+    /**
+     * Waits for a file system event, checks if it's appropriate and processes
+     * it.
+     *
+     * @throws IOException if an I/O error occurs.
+     */
     private void waitForFSEventAndProcessIt() throws IOException {
         // wait for key to be signaled
         WatchKey key;
@@ -115,6 +166,8 @@ public class FSEventListenerImpl implements FileSystemEventListener {
 
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized (key) {
+            // events, associated with this key are also processed during registration,
+            // that's why synchronization is necessary.
             Path dir = trackedDirs.get(key);
             if (dir != null) {
                 log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
@@ -122,6 +175,7 @@ public class FSEventListenerImpl implements FileSystemEventListener {
                 for (WatchEvent<?> event : events) {
                     WatchEvent.Kind<?> kind = event.kind();
 
+                    // TODO: deal with it
                     if (kind == OVERFLOW) {
                         continue;
                     }
@@ -167,6 +221,14 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         return new FileSystemEvent(kind, changedFile);
     }
 
+    /**
+     * Registers given path to the watcher with all possible events to trigger.
+     *
+     * @param path the path to register.
+     * @return a key representing the registration of this object with the watch
+     * service.
+     * @throws IOException if an I/O error occurs.
+     */
     private WatchKey registerPathToTheWatcher(Path path) throws IOException {
         return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE, ENTRY_DELETE);
     }

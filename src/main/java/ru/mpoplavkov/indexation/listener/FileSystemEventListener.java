@@ -30,8 +30,8 @@ public interface FileSystemEventListener extends Closeable {
      * <p>If the given path was already registered, than nothing happens.
      * <i>true</i> will be returned in this case.
      *
-     * @param path path to register.
-     * @return true iff path was accepted, false otherwise.
+     * @param path the path to register.
+     * @return true iff the path was accepted, false otherwise.
      * @throws IOException if an I/O error occurs.
      */
     boolean register(Path path) throws IOException;
