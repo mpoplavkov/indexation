@@ -17,6 +17,9 @@ import java.util.stream.Stream;
  * Term index based on the storage of values along with their versions.
  * Each update operation changes the value's version. The version
  * correspondence is checked when values are retrieved.
+ * <p>For each update, the value is fully re-indexed. Values, along with
+ * their versions, are stored wrapped in the {@link java.lang.ref.WeakReference}.
+ * This allows to not cleanup the storage manually.
  *
  * @param <V> type of value to be stored in the index.
  */
@@ -26,7 +29,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * The underlying storage. Stores values along with their versions.
      */
     private final KeyMultiValueStorage<Term, VersionedValue<V>> kmvStorage =
-            new ConcurrentHashMapBasedKeyMultiValueStorage<>();
+            new ConcurrentKeyMultiWeakValueStorage<>();
 
     /**
      * Association between values and their actual versions in the storage.
@@ -36,7 +39,8 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * If the value's version is negative, it means that the value has been
      * deleted from the index (but possibly not from the storage).
      */
-    private final Map<V, Long> valueVersions = new ConcurrentHashMap<>(); // TODO: deal with version overflow
+    // TODO: deal with version overflow
+    private final Map<V, VersionedValue<V>> valueVersions = new ConcurrentHashMap<>();
 
     /**
      * Atomically associates given terms with the value in the storage.
@@ -54,13 +58,18 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      */
     @Override
     public void index(V value, Iterable<Term> terms) {
-        Long oldVersion = valueVersions.get(value);
-        Long newVersion = incVersion(oldVersion);
-        VersionedValue<V> versionedValue = new VersionedValue<>(value, newVersion);
-        for (Term term : terms) {
-            kmvStorage.put(term, versionedValue);
+        VersionedValue<V> oldVersionedValue = valueVersions.get(value);
+        VersionedValue<V> newVersionedValue;
+        if (oldVersionedValue == null) {
+            newVersionedValue = VersionedValue.withInitialVersion(value);
+        } else {
+            newVersionedValue = oldVersionedValue.withIncrementedVersion();
         }
-        valueVersions.put(value, newVersion);
+
+        for (Term term : terms) {
+            kmvStorage.put(term, newVersionedValue);
+        }
+        valueVersions.put(value, newVersionedValue);
     }
 
     /**
@@ -73,7 +82,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      */
     @Override
     public void delete(V value) {
-        valueVersions.computeIfPresent(value, (v, oldVersion) -> negateVersion(oldVersion));
+        valueVersions.computeIfPresent(value, (v, versioned) -> versioned.withNegativeVersion());
     }
 
     /**
@@ -144,34 +153,38 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
         );
     }
 
-    private Long incVersion(Long oldVersion) {
-        if (oldVersion == null) {
-            return VersionedValue.INITIAL_VERSION;
-        } else {
-            // there could be a negative version if the file was deleted
-            long absOldVersion = Math.abs(oldVersion);
-            return ++absOldVersion;
-        }
-    }
-
-    private Long negateVersion(Long oldVersion) {
-        return oldVersion == null ? null : -Math.abs(oldVersion);
-    }
-
     private Stream<VersionedValue<V>> withActualVersion(V value) {
-        Long actualVersion = valueVersions.get(value);
-        if (actualVersion == null) {
+        VersionedValue<V> actualVersionedValue = valueVersions.get(value);
+        if (actualVersionedValue == null) {
             return Stream.empty();
         } else {
-            return Stream.of(new VersionedValue<>(value, actualVersion));
+            return Stream.of(actualVersionedValue);
         }
     }
 
     @Data
     private static class VersionedValue<V> {
-        public static final long INITIAL_VERSION = 1;
+        private static final long INITIAL_VERSION = 1;
 
         private final V value;
         private final long version;
+
+        static <T> VersionedValue<T> withInitialVersion(T value) {
+            return new VersionedValue<>(value, INITIAL_VERSION);
+        }
+
+        VersionedValue<V> withIncrementedVersion() {
+            return new VersionedValue<>(value, incVersion(version));
+        }
+
+        VersionedValue<V> withNegativeVersion() {
+            return new VersionedValue<>(value, -version);
+        }
+
+        private long incVersion(long oldVersion) {
+            // there could be a negative version if the value was deleted
+            long absOldVersion = Math.abs(oldVersion);
+            return ++absOldVersion;
+        }
     }
 }
