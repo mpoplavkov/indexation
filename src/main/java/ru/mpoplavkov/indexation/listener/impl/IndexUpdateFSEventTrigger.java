@@ -33,6 +33,9 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
      */
     private final TermIndex<Path> index;
 
+    /**
+     * Filter to check files before the processing.
+     */
     private final FileFilter fileFilter;
 
     /**
@@ -40,6 +43,10 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
      */
     private final TermsExtractor termsExtractor;
 
+    /**
+     * Specifies how to transform terms, extracted from files,
+     * before indexation.
+     */
     private final TermsTransformer termsTransformer;
 
     @Override

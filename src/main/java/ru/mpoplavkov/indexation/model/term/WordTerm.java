@@ -3,6 +3,9 @@ package ru.mpoplavkov.indexation.model.term;
 import com.google.common.base.Preconditions;
 import lombok.Data;
 
+/**
+ * One nonempty word.
+ */
 @Data
 public class WordTerm implements Term {
 
