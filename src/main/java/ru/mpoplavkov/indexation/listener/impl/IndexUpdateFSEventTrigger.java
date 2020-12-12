@@ -2,7 +2,7 @@ package ru.mpoplavkov.indexation.listener.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-import ru.mpoplavkov.indexation.filter.FileFilter;
+import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
@@ -36,7 +36,7 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
     /**
      * Filter to check files before the processing.
      */
-    private final FileFilter fileFilter;
+    private final PathFilter pathFilter;
 
     /**
      * Specifies how to extract terms from files.
@@ -76,7 +76,7 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
     }
 
     private void processFileEvent(FileSystemEvent.Kind kind, Path file) throws IOException {
-        if (fileFilter.filter(file)) {
+        if (pathFilter.filter(file)) {
             switch (kind) {
                 case FILE_CREATE:
                 case FILE_UPDATE:

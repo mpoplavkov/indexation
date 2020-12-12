@@ -3,7 +3,7 @@ package ru.mpoplavkov.indexation.listener.impl;
 import com.google.common.collect.ImmutableMap;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
-import ru.mpoplavkov.indexation.filter.FileFilter;
+import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
@@ -29,7 +29,7 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
 
     private final WatchService watcher;
     private final List<FSEventTrigger> triggers;
-    private final FileFilter fileFilter;
+    private final PathFilter pathFilter;
 
     /**
      * Mapping from watch keys to the paths tracked by those keys.
@@ -57,12 +57,12 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
     /**
      * Creates the listener.
      *
-     * @param fileFilter filter for files to check while registration and processing.
+     * @param pathFilter filter for files to check while registration and processing.
      * @param triggers   triggers to apply for found events.
      * @throws IOException if an I/O error occurs.
      */
-    public WatchServiceBasedListenerImpl(FileFilter fileFilter, FSEventTrigger... triggers) throws IOException {
-        this.fileFilter = fileFilter;
+    public WatchServiceBasedListenerImpl(PathFilter pathFilter, FSEventTrigger... triggers) throws IOException {
+        this.pathFilter = pathFilter;
         this.triggers = Arrays.asList(triggers);
         watcher = FileSystems.getDefault().newWatchService();
     }
@@ -86,7 +86,7 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
             eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
             directoryToRegister = path;
         } else {
-            if (!fileFilter.filter(path)) {
+            if (!pathFilter.filter(path)) {
                 return false;
             }
             eventKind = FileSystemEvent.Kind.FILE_CREATE;
@@ -183,7 +183,7 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
                     @SuppressWarnings("unchecked")
                     WatchEvent<Path> ev = (WatchEvent<Path>) event;
                     Path changedFile = dir.resolve(ev.context());
-                    if (!fileFilter.filter(changedFile)) {
+                    if (!pathFilter.filter(changedFile)) {
                         continue;
                     }
                     FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedFile);

@@ -1,7 +1,7 @@
 package ru.mpoplavkov.indexation.service.impl;
 
-import ru.mpoplavkov.indexation.filter.FileFilter;
-import ru.mpoplavkov.indexation.filter.impl.TextFileFilter;
+import ru.mpoplavkov.indexation.filter.PathFilter;
+import ru.mpoplavkov.indexation.filter.impl.TextPathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.index.impl.VersionedTermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
@@ -49,26 +49,26 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
      *
      * @param termsExtractor       specifies how to extract terms from files.
      * @param termsTransformer     specifies how to transform terms, both for index and search.
-     * @param fileFilter           specifies which files to accept for indexation.
+     * @param pathFilter           specifies which files to accept for indexation.
      * @param listenerThreadsCount number of threads to listen for file system events.
      * @throws IOException if an I/O error occurs.
      */
     public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
                                       TermsTransformer termsTransformer,
-                                      FileFilter fileFilter,
+                                      PathFilter pathFilter,
                                       int listenerThreadsCount) throws IOException {
         this.termsTransformer = termsTransformer;
 
         index = new VersionedTermIndex<>();
-        FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, fileFilter, termsExtractor, termsTransformer);
-        listener = new WatchServiceBasedListenerImpl(fileFilter, trigger);
+        FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, pathFilter, termsExtractor, termsTransformer);
+        listener = new WatchServiceBasedListenerImpl(pathFilter, trigger);
 
         startListener(listenerThreadsCount);
     }
 
     public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
                                       int listenerThreadsCount) throws IOException {
-        this(termsExtractor, new IdTermsTransformer(), new TextFileFilter(), listenerThreadsCount);
+        this(termsExtractor, new IdTermsTransformer(), new TextPathFilter(), listenerThreadsCount);
     }
 
     private void startListener(int parallelism) {
