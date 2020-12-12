@@ -13,7 +13,7 @@ public class ConcurrentHashMapBasedKeyMultiValueStorage<K, V> implements KeyMult
 
     @Override
     public void put(K key, V value) {
-        Set<V> associatedSet = storage.computeIfAbsent(key, k -> new HashSet<>());
+        Set<V> associatedSet = storage.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet());
         associatedSet.add(value);
     }
 
