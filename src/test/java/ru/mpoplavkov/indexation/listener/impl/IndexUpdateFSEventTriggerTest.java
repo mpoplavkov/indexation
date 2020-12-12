@@ -37,7 +37,7 @@ class IndexUpdateFSEventTriggerTest {
 
     @Test
     public void shouldCorrectlyReactOnCreateFileEvent() throws IOException {
-        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_CREATE, file);
+        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, file);
         when(pathFilter.filter(any())).thenReturn(true);
         when(extractor.extractTerms(any())).thenReturn(createSet(term1));
         when(transformer.transform(term1)).thenReturn(term2);
@@ -48,7 +48,7 @@ class IndexUpdateFSEventTriggerTest {
 
     @Test
     public void shouldCorrectlyReactOnUpdateFileEvent() throws IOException {
-        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_UPDATE, file);
+        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_MODIFY, file);
         when(pathFilter.filter(any())).thenReturn(true);
         when(extractor.extractTerms(any())).thenReturn(createSet(term1));
         when(transformer.transform(term1)).thenReturn(term2);
@@ -59,7 +59,7 @@ class IndexUpdateFSEventTriggerTest {
 
     @Test
     public void shouldCorrectlyReactOnDeleteFileEvent() throws IOException {
-        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_DELETE, file);
+        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file);
         when(pathFilter.filter(any())).thenReturn(true);
         trigger.onEvent(event);
         verify(index).delete(file);
@@ -67,7 +67,7 @@ class IndexUpdateFSEventTriggerTest {
 
     @Test
     public void shouldCorrectlyReactOnCreateDirectoryEvent() throws IOException {
-        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.DIRECTORY_CREATE, dir);
+        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, dir);
         when(pathFilter.filter(any())).thenReturn(true);
         when(extractor.extractTerms(any())).thenReturn(createSet(term1));
         when(transformer.transform(term1)).thenReturn(term2);
@@ -79,7 +79,7 @@ class IndexUpdateFSEventTriggerTest {
 
     @Test
     public void shouldNotReactOnUninterestingFiles() throws IOException {
-        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.FILE_CREATE, file);
+        FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, file);
         when(pathFilter.filter(any())).thenReturn(false);
         trigger.onEvent(event);
 

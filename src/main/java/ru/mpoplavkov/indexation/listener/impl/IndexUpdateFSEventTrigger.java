@@ -16,10 +16,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * Trigger that updates underlying index in accordance with events.
@@ -51,47 +49,71 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
 
     @Override
     public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
-        Path path = fileSystemEvent.getContext();
+        Path path = fileSystemEvent.getEntry();
         FileSystemEvent.Kind kind = fileSystemEvent.getKind();
-        switch (kind) {
-            case FILE_CREATE:
-            case FILE_UPDATE:
-            case FILE_DELETE:
-                processFileEvent(kind, path);
-                break;
-            case DIRECTORY_CREATE:
-                List<Path> allFiles = Files.walk(path)
-                        .filter(f -> !Files.isDirectory(f))
-                        .collect(Collectors.toList());
-                for (Path file : allFiles) {
-                    processFileEvent(FileSystemEvent.Kind.FILE_CREATE, file);
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException(
-                        String.format("FileSystemEvent kind '%s' is not supported", fileSystemEvent.getKind())
-                );
+        if (Files.isDirectory(path)) {
+            processDirectoryEvent(kind, path);
+        } else {
+            processFileEvent(kind, path);
         }
-
     }
 
     private void processFileEvent(FileSystemEvent.Kind kind, Path file) throws IOException {
-        if (pathFilter.filter(file)) {
-            switch (kind) {
-                case FILE_CREATE:
-                case FILE_UPDATE:
-                    indexFile(file);
-                    break;
-                case FILE_DELETE:
-                    index.delete(file);
-                    break;
-                default:
-                    throw new UnsupportedOperationException(
-                            String.format("FileSystemEvent kind '%s' is not a file event", kind)
-                    );
-            }
+        if (!checkPath(file)) {
+            return;
+        }
+        switch (kind) {
+            case ENTRY_CREATE:
+            case ENTRY_MODIFY:
+                indexFile(file);
+                break;
+            case ENTRY_DELETE:
+                index.delete(file);
+                break;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("FileSystemEvent kind '%s' is not a file event", kind)
+                );
+        }
+    }
+
+    private void processDirectoryEvent(FileSystemEvent.Kind kind, Path dir) throws IOException {
+        if (!checkPath(dir)) {
+            return;
+        }
+        switch (kind) {
+            case ENTRY_CREATE:
+                for (Path file : Files.newDirectoryStream(dir)) {
+                    if (!Files.isDirectory(dir)) {
+                        processFileEvent(FileSystemEvent.Kind.ENTRY_CREATE, file);
+                    }
+                }
+                break;
+            case ENTRY_MODIFY:
+                // nothing
+                break;
+            case ENTRY_DELETE:
+
+                // TODO: implement
+                log.log(Level.WARNING,
+                        String.format("Directory deletion is not implemented yet." +
+                                " Files from [{0}] will remain in the index", dir.toAbsolutePath())
+                );
+                break;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("FileSystemEvent kind '%s' is not a file event", kind)
+                );
+        }
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    private boolean checkPath(Path path) {
+        if (pathFilter.filter(path)) {
+            return true;
         } else {
-            log.log(Level.INFO, "File [{0}] did not pass the filter", file.toAbsolutePath());
+            log.log(Level.INFO, "Path [{0}] did not pass the filter", path.toAbsolutePath());
+            return false;
         }
     }
 

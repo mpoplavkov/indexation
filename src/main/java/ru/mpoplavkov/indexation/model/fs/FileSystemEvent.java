@@ -10,13 +10,11 @@ import java.nio.file.Path;
 @Data
 public class FileSystemEvent {
     public enum Kind {
-        FILE_CREATE,
-        FILE_UPDATE,
-        FILE_DELETE,
-        DIRECTORY_CREATE,
-        DIRECTORY_DELETE
+        ENTRY_CREATE,
+        ENTRY_MODIFY,
+        ENTRY_DELETE
     }
 
     private final Kind kind;
-    private final Path context;
+    private final Path entry;
 }
