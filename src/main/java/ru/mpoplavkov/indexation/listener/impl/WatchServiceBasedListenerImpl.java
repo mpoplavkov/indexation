@@ -81,7 +81,6 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
         Path directoryToRegister;
         if (Files.isDirectory(path)) {
             // TODO: walk through directory and register all it's subdirectories
-            //  to allow them to be processed concurrently
             parentsResponsibleFofChildren.remove(path);
             eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
             directoryToRegister = path;

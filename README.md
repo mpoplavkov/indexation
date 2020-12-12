@@ -11,6 +11,7 @@ JetBrains test assignment.
 - improve tests quality using different junit features
 - retry requests
 - create client
+- support inner directories
 
 ## Notes
 
