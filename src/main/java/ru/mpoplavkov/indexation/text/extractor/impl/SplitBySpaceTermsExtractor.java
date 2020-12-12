@@ -11,6 +11,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Extracts single words by splitting incoming strings by whitespaces.
+ */
 public class SplitBySpaceTermsExtractor implements TermsExtractor {
     @Override
     public Set<Term> extractTerms(Source s) throws IOException {

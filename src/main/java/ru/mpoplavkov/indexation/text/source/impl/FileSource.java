@@ -38,12 +38,8 @@ public class FileSource implements Source {
     }
 
     /**
-     * Returns the stream of lines from the source.
-     * Returned stream must be closed after usage.
-     * <p>
-     * The file contents should not be modified during the execution of the
-     * terminal stream operation. Otherwise, the result of the terminal stream
-     * operation is undefined.
+     * Returns the stream of lines from the source. Returned stream must be
+     * closed after usage.
      *
      * @return stream of lines.
      * @throws IOException if an I/O error occurs reading from the file.
