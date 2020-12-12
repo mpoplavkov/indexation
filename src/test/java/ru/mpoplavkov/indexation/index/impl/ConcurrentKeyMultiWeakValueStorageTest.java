@@ -10,7 +10,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static ru.mpoplavkov.indexation.TestUtils.createSet;
 
-class ConcurrentHashMapBasedKeyMultiValueStorageTest {
+class ConcurrentKeyMultiWeakValueStorageTest {
 
     KeyMultiValueStorage<String, Integer> storage;
 
@@ -22,7 +22,7 @@ class ConcurrentHashMapBasedKeyMultiValueStorageTest {
 
     @BeforeEach
     void init() {
-        storage = new ConcurrentHashMapBasedKeyMultiValueStorage<>();
+        storage = new ConcurrentKeyMultiWeakValueStorage<>();
     }
 
     @Test
