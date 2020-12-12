@@ -4,13 +4,13 @@ JetBrains test assignment.
 ## Things to improve
 
 - implement TODOs
-- make it all thread safe
 - tests (event listener, index service)
-- docs
 - compaction for the index (garbage collection)
 - check all access modifiers
 - add logging
 - improve tests quality using different junit features
+- retry requests
+- create client
 
 ## Notes
 
