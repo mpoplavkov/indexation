@@ -42,7 +42,6 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
 
     private final TermsTransformer termsTransformer;
 
-    // TODO: get rid of switches
     @Override
     public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
         Path path = fileSystemEvent.getContext();
