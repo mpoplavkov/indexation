@@ -1,8 +1,8 @@
 package ru.mpoplavkov.indexation.index.impl;
 
+import lombok.Data;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 import ru.mpoplavkov.indexation.index.TermIndex;
-import ru.mpoplavkov.indexation.model.VersionedValue;
 import ru.mpoplavkov.indexation.model.query.ExactTerm;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.model.term.Term;
@@ -29,7 +29,7 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
      * If the value's version is negative, it means that the value has been
      * deleted from the index (but possibly not from the storage).
      */
-    private final Map<V, Integer> valueVersions = new ConcurrentHashMap<>(); // TODO: deal with version overflow
+    private final Map<V, Long> valueVersions = new ConcurrentHashMap<>(); // TODO: deal with version overflow
 
     /**
      * Atomically associates given terms with the value in the storage.
@@ -39,8 +39,8 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
      */
     @Override
     public void index(V value, Iterable<Term> terms) {
-        Integer oldVersion = valueVersions.get(value);
-        Integer newVersion = incVersion(oldVersion);
+        Long oldVersion = valueVersions.get(value);
+        Long newVersion = incVersion(oldVersion);
         VersionedValue<V> versionedValue = new VersionedValue<>(value, newVersion);
         for (Term term : terms) {
             kmvStorage.put(term, versionedValue);
@@ -90,17 +90,17 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
         );
     }
 
-    private Integer incVersion(Integer oldVersion) {
+    private Long incVersion(Long oldVersion) {
         if (oldVersion == null) {
             return VersionedValue.INITIAL_VERSION;
         } else {
             // there could be a negative version if the file was deleted
-            int absOldVersion = Math.abs(oldVersion);
+            long absOldVersion = Math.abs(oldVersion);
             return ++absOldVersion;
         }
     }
 
-    private Integer negateVersion(Integer oldVersion) {
+    private Long negateVersion(Long oldVersion) {
         if (oldVersion == null) {
             return null;
         } else {
@@ -109,11 +109,19 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
     }
 
     private Stream<VersionedValue<V>> withActualVersion(V value) {
-        Integer actualVersion = valueVersions.get(value);
+        Long actualVersion = valueVersions.get(value);
         if (actualVersion == null) {
             return Stream.empty();
         } else {
-            return Stream.of(new VersionedValue<V>(value, actualVersion));
+            return Stream.of(new VersionedValue<>(value, actualVersion));
         }
+    }
+
+    @Data
+    private static class VersionedValue<V> {
+        public static final long INITIAL_VERSION = 1;
+
+        private final V value;
+        private final long version;
     }
 }
