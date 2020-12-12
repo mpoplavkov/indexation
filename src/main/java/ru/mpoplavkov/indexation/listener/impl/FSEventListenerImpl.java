@@ -54,7 +54,7 @@ public class FSEventListenerImpl implements FileSystemEventListener {
         FileSystemEvent.Kind eventKind;
         Path directoryToRegister;
         if (Files.isDirectory(path)) {
-            // TODO: delete from parentsResponsibleFofChildren
+            parentsResponsibleFofChildren.remove(path);
             eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
             directoryToRegister = path;
         } else {
