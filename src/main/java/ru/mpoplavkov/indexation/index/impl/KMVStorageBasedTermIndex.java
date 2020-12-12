@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 // TODO: add the second implementation
 public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
@@ -38,7 +39,6 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
      */
     @Override
     public void index(V value, Iterable<Term> terms) {
-        // TODO: think about the order
         Integer oldVersion = valueVersions.get(value);
         Integer newVersion = incVersion(oldVersion);
         VersionedValue<V> versionedValue = new VersionedValue<>(value, newVersion);
@@ -65,8 +65,22 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
     public Set<V> search(Query query) {
         if (query instanceof ExactTerm) {
             ExactTerm exactTerm = (ExactTerm) query;
-            return kmvStorage.get(exactTerm.getTerm()).stream()
-                    .filter(this::versionIsActual)
+            Term termToSearch = exactTerm.getTerm();
+
+            Set<VersionedValue<V>> firstQueryResult = kmvStorage.get(termToSearch);
+
+            Set<VersionedValue<V>> interestingVersionedValues =
+                    firstQueryResult
+                            .stream()
+                            .map(VersionedValue::getValue)
+                            .flatMap(this::withActualVersion)
+                            .collect(Collectors.toSet());
+
+            Set<VersionedValue<V>> secondQueryResult = kmvStorage.get(termToSearch);
+
+            return secondQueryResult
+                    .stream()
+                    .filter(interestingVersionedValues::contains)
                     .map(VersionedValue::getValue)
                     .collect(Collectors.toSet());
         }
@@ -80,6 +94,7 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
         if (oldVersion == null) {
             return VersionedValue.INITIAL_VERSION;
         } else {
+            // there could be a negative version if the file was deleted
             int absOldVersion = Math.abs(oldVersion);
             return ++absOldVersion;
         }
@@ -93,11 +108,12 @@ public class KMVStorageBasedTermIndex<V> implements TermIndex<V> {
         }
     }
 
-    private boolean versionIsActual(VersionedValue<V> versionedValue) {
-        Integer actualVersion = valueVersions.get(versionedValue.getValue());
+    private Stream<VersionedValue<V>> withActualVersion(V value) {
+        Integer actualVersion = valueVersions.get(value);
         if (actualVersion == null) {
-            return false;
+            return Stream.empty();
+        } else {
+            return Stream.of(new VersionedValue<V>(value, actualVersion));
         }
-        return versionedValue.getVersion() == actualVersion;
     }
 }
