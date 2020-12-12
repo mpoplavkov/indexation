@@ -26,7 +26,7 @@ public class FSEventListenerImpl implements FileSystemEventListener {
     private final List<FSEventTrigger> triggers;
     private final FileFilter fileFilter;
 
-    private final Map<WatchKey, Path> trackedPaths = new ConcurrentHashMap<>();
+    private final Map<WatchKey, Path> trackedDirs = new ConcurrentHashMap<>();
 
     /**
      * Contains the relation between a directory and its children, tracked by
@@ -52,26 +52,30 @@ public class FSEventListenerImpl implements FileSystemEventListener {
     @Override
     public boolean register(Path path) throws IOException {
         FileSystemEvent.Kind eventKind;
+        Path directoryToRegister;
         if (Files.isDirectory(path)) {
+            // TODO: delete from parentsResponsibleFofChildren
             eventKind = FileSystemEvent.Kind.DIRECTORY_CREATE;
-            // TODO: order, sync?
-            WatchKey watchKey = registerPathToTheWatcher(path);
-            trackedPaths.put(watchKey, path);
+            directoryToRegister = path;
         } else {
             if (!fileFilter.filter(path)) {
                 return false;
             }
             eventKind = FileSystemEvent.Kind.FILE_CREATE;
-            // TODO: order, sync?
             Path parent = path.getParent();
-            WatchKey watchKey = registerPathToTheWatcher(parent);
-            trackedPaths.put(watchKey, parent);
+            directoryToRegister = parent;
             Set<Path> children = parentsResponsibleFofChildren
                     .computeIfAbsent(parent, p -> ConcurrentHashMap.newKeySet());
             children.add(path);
         }
+
         FileSystemEvent event = new FileSystemEvent(eventKind, path);
-        processFSEvent(event);
+        WatchKey watchKey = registerPathToTheWatcher(directoryToRegister);
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (watchKey) {
+            trackedDirs.put(watchKey, directoryToRegister);
+            processFSEvent(event);
+        }
         return true;
     }
 
@@ -109,43 +113,46 @@ public class FSEventListenerImpl implements FileSystemEventListener {
             return;
         }
 
-        Path dir = trackedPaths.get(key);
-        if (dir != null) {
-            log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
-            List<WatchEvent<?>> events = key.pollEvents();
-            for (WatchEvent<?> event : events) {
-                WatchEvent.Kind<?> kind = event.kind();
-
-                if (kind == OVERFLOW) {
-                    continue;
-                }
-
-                @SuppressWarnings("unchecked")
-                WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                Path changedFile = dir.resolve(ev.context());
-                if (!fileFilter.filter(changedFile)) {
-                    continue;
-                }
-                FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedFile);
-
-                Set<Path> dependentChildren = parentsResponsibleFofChildren.get(dir);
-                if (dependentChildren != null && !dependentChildren.contains(changedFile)) {
-                    // skip the processing of not dependent files
-                    continue;
-                }
-
-                processFSEvent(fsEvent);
-            }
-        }
-
-        // If the key is no longer valid, the directory is inaccessible so stop
-        // listening to its changes.
-        boolean valid = key.reset();
-        if (!valid) {
-            trackedPaths.remove(key);
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (key) {
+            Path dir = trackedDirs.get(key);
             if (dir != null) {
-                log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
-                parentsResponsibleFofChildren.remove(dir);
+                log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
+                List<WatchEvent<?>> events = key.pollEvents();
+                for (WatchEvent<?> event : events) {
+                    WatchEvent.Kind<?> kind = event.kind();
+
+                    if (kind == OVERFLOW) {
+                        continue;
+                    }
+
+                    @SuppressWarnings("unchecked")
+                    WatchEvent<Path> ev = (WatchEvent<Path>) event;
+                    Path changedFile = dir.resolve(ev.context());
+                    if (!fileFilter.filter(changedFile)) {
+                        continue;
+                    }
+                    FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedFile);
+
+                    Set<Path> dependentChildren = parentsResponsibleFofChildren.get(dir);
+                    if (dependentChildren != null && !dependentChildren.contains(changedFile)) {
+                        // skip the processing of not dependent files
+                        continue;
+                    }
+
+                    processFSEvent(fsEvent);
+                }
+            }
+
+            // If the key is no longer valid, the directory is inaccessible so stop
+            // listening to its changes.
+            boolean valid = key.reset();
+            if (!valid) {
+                trackedDirs.remove(key);
+                if (dir != null) {
+                    log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
+                    parentsResponsibleFofChildren.remove(dir);
+                }
             }
         }
     }
