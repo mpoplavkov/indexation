@@ -8,7 +8,7 @@ public interface FileSystemEventListener extends Closeable {
 
     void listenLoop();
 
-    void register(Path path) throws IOException;
+    boolean register(Path path) throws IOException;
 
     // TODO:
     //    void unregister(Path path);

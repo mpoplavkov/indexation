@@ -43,7 +43,7 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
         index = new VersionedTermIndex<>();
         FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, fileFilter, termsExtractor, termsTransformer);
-        listener = new FSEventListenerImpl(trigger);
+        listener = new FSEventListenerImpl(fileFilter, trigger);
 
         startListener(listenerThreadsCount);
     }
