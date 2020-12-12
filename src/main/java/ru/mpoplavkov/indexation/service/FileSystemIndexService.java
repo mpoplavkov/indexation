@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Set;
 
+/**
+ * Service to interact with the index.
+ */
 public interface FileSystemIndexService extends Closeable {
 
     /**
@@ -17,6 +20,13 @@ public interface FileSystemIndexService extends Closeable {
      */
     Set<Path> search(Query query);
 
+    /**
+     * Adds the given path to the index. Starts to listen to it's
+     * changes and update the index accordingly.
+     *
+     * @param path the path to add to the index.
+     * @throws IOException if an I/O error occurs.
+     */
     void addToIndex(Path path) throws IOException;
 
 }

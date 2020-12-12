@@ -6,8 +6,8 @@ import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.index.impl.VersionedTermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
-import ru.mpoplavkov.indexation.listener.impl.WatchServiceBasedListenerImpl;
 import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFSEventTrigger;
+import ru.mpoplavkov.indexation.listener.impl.WatchServiceBasedListenerImpl;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.service.FileSystemIndexService;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
@@ -22,6 +22,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Implementation of the {@link FileSystemIndexService}.
+ */
 public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
     /**
@@ -29,12 +32,27 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
      */
     private final TermIndex<Path> index;
 
+    /**
+     * Specifies how to transform terms, both for index and search.
+     */
     private final TermsTransformer termsTransformer;
 
+    /**
+     * Underlying listener of file events.
+     */
     private final FileSystemEventListener listener;
 
     private ExecutorService listenerExecutorService;
 
+    /**
+     * Creates the service to interact with the index.
+     *
+     * @param termsExtractor       specifies how to extract terms from files.
+     * @param termsTransformer     specifies how to transform terms, both for index and search.
+     * @param fileFilter           specifies which files to accept for indexation.
+     * @param listenerThreadsCount number of threads to listen for file system events.
+     * @throws IOException if an I/O error occurs.
+     */
     public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
                                       TermsTransformer termsTransformer,
                                       FileFilter fileFilter,
