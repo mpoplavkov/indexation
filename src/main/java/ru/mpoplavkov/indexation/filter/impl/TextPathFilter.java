@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Checks if the path is a file with text content type.
+ * Checks if the path is a file with text content type or a directory.
  */
 public class TextPathFilter implements PathFilter {
 
@@ -16,7 +16,7 @@ public class TextPathFilter implements PathFilter {
     @Override
     public boolean filter(Path path) {
         try {
-            return (!Files.isDirectory(path)) && TEXT_PLAIN.equals(Files.probeContentType(path));
+            return Files.isDirectory(path) || TEXT_PLAIN.equals(Files.probeContentType(path));
         } catch (IOException e) {
             e.printStackTrace();
             return false;
