@@ -6,6 +6,7 @@ import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.source.Source;
@@ -48,7 +49,11 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
     private final TermsTransformer termsTransformer;
 
     @Override
-    public void onEvent(Path changedFile) throws IOException {
+    public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
+        if (fileSystemEvent.getKind() == FileSystemEvent.Kind.ENTRY_DELETE) {
+            return;
+        }
+        Path changedFile = fileSystemEvent.getEntry();
         Preconditions.checkArgument(!Files.isDirectory(changedFile));
         if (pathFilter.filter(changedFile)) {
             indexFile(changedFile);

@@ -1,5 +1,7 @@
 package ru.mpoplavkov.indexation.listener;
 
+import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
+
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -11,6 +13,6 @@ public interface FSEventTrigger {
      * @param fileSystemEvent event that occurred in the system, where
      *                        this trigger is registered.
      */
-    void onEvent(Path changedPath) throws IOException;
+    void onEvent(FileSystemEvent fileSystemEvent) throws IOException;
 
 }

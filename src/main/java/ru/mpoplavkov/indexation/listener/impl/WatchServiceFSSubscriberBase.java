@@ -1,87 +1,98 @@
 package ru.mpoplavkov.indexation.listener.impl;
 
-import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
-import ru.mpoplavkov.indexation.listener.FSEventTrigger;
-import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
+import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
+import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
 /**
- * Implementation of {@link FileSystemEventListener}, based on the
- * {@link WatchService}. Takes care about processing the events for
- * a particular path at any time exclusively by only one thread.
+ * {@link FileSystemSubscriber}, based on the {@link WatchService}.
+ * Takes care about processing the events for a particular path at
+ * any time exclusively by only one thread. Allows to register
+ * directories as well as regular files.
  */
 @Log
-public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
+public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscriber {
 
     private final WatchService watcher;
-    private final List<FSEventTrigger> triggers;
     private final PathFilter pathFilter;
+    private ExecutorService listenerExecutorService;
 
     /**
      * Mapping from watch keys to the paths tracked by those keys.
      */
     private final Map<WatchKey, Path> watchKeysToDir = new ConcurrentHashMap<>();
 
-    private final Set<Path> trackedDirs = ConcurrentHashMap.newKeySet();
+    /**
+     * Set of all tracked paths by this subscriber.
+     */
+    protected final Set<Path> trackedPaths = ConcurrentHashMap.newKeySet();
 
     /**
      * Contains the relation between a directory and its children, tracked by
-     * this listener.
+     * this subscriber.
      * This is necessary because of limitations of the {@link WatchService},
      * which allows to register only directories to be watched.
      */
     private final Map<Path, Set<Path>> parentsResponsibleFofChildren = new ConcurrentHashMap<>();
 
     /**
-     * Creates the listener.
+     * Mapping between {@link WatchEvent.Kind} and {@link FileSystemEvent.Kind}.
+     */
+    private static final Map<WatchEvent.Kind<Path>, FileSystemEvent.Kind> EVENT_KINDS_MAP =
+            ImmutableMap.of(
+                    ENTRY_CREATE, FileSystemEvent.Kind.ENTRY_CREATE,
+                    ENTRY_MODIFY, FileSystemEvent.Kind.ENTRY_MODIFY,
+                    ENTRY_DELETE, FileSystemEvent.Kind.ENTRY_DELETE
+            );
+
+    /**
+     * Creates the subscriber.
      *
-     * @param pathFilter filter for files to check while registration and processing.
-     * @param triggers   triggers to apply for found events.
+     * @param pathFilter filter for paths to check while registration and processing.
      * @throws IOException if an I/O error occurs.
      */
-    public WatchServiceBasedListenerImpl(PathFilter pathFilter, FSEventTrigger... triggers) throws IOException {
+    public WatchServiceFSSubscriberBase(PathFilter pathFilter) throws IOException {
         this.pathFilter = pathFilter;
-        this.triggers = Arrays.asList(triggers);
         watcher = FileSystems.getDefault().newWatchService();
     }
 
     /**
-     * Records information about the path to track and processes the
-     * path in the same way as if it was just created in the file system.
+     * Records information about the path to track and processes it
+     * in the same way as if it was just created in the file system.
      *
      * @param path the path to register.
-     * @return true iff the path passed the filter, false otherwise.
      * @throws IOException if an I/O error occurs.
      */
     @Override
-    public void register(Path path) throws IOException {
-        registerInner(path);
-    }
-
-    private void registerInner(Path path) throws IOException {
+    public void subscribe(Path path) throws IOException {
         if (!pathFilter.filter(path)) {
+            return;
+        }
+        if (trackedPaths.contains(path)) {
             return;
         }
         Path directoryToRegister;
         if (Files.isDirectory(path)) {
             parentsResponsibleFofChildren.remove(path);
-            if (trackedDirs.contains(path)) {
-                return;
-            }
             directoryToRegister = path;
         } else {
             Path parent = path.getParent();
@@ -97,19 +108,49 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
             // events, associated with the watch key must be processed
             // exclusively by one thread.
             watchKeysToDir.put(watchKey, directoryToRegister);
-            processFSEvent(path);
+            onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, path));
         }
     }
 
     /**
-     * Closes the underlying {@link WatchService}. This will also cause
-     * cancellation of all the listen loops, associated with this listener.
+     * Closes the underlying {@link WatchService} and the listener executor
+     * service.
      *
      * @throws IOException if an I/O error occurs.
      */
     @Override
     public void close() throws IOException {
         watcher.close();
+        if (listenerExecutorService != null) {
+            listenerExecutorService.shutdownNow();
+        }
+    }
+
+    private final Lock listenerLock = new ReentrantLock();
+
+    /**
+     * Creates an {@link ExecutorService} and submits to it a specified
+     * number of threads that will listen for events in an infinite loop.
+     *
+     * @param numberOfListenerThreads number of threads to listen for
+     *                                events.
+     */
+    @Override
+    public void startToListenForEvents(int numberOfListenerThreads) {
+        listenerLock.lock();
+        try {
+            if (listenerExecutorService != null) {
+                log.log(Level.WARNING, "The listener has already been started");
+                return;
+            }
+            listenerExecutorService = createListenerExecutorService(numberOfListenerThreads);
+
+            for (int i = 0; i < numberOfListenerThreads; i++) {
+                listenerExecutorService.execute(this::listenLoop);
+            }
+        } finally {
+            listenerLock.unlock();
+        }
     }
 
     /**
@@ -117,7 +158,6 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
      */
     // TODO: think what to do in case of an error
     @SneakyThrows
-    @Override
     public void listenLoop() {
         while (true) {
             try {
@@ -125,37 +165,6 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
             } catch (ClosedWatchServiceException e) {
                 break;
             }
-        }
-    }
-
-    private void processFSEvent(Path path) throws IOException {
-        if (Files.isDirectory(path)) {
-            processDirectoryEvent(path);
-        } else {
-            processFileEvent(path);
-        }
-    }
-
-    private void processDirectoryEvent(Path dir) throws IOException {
-        Preconditions.checkArgument(Files.isDirectory(dir));
-        if (!trackedDirs.contains(dir)) {
-            // else will be processed by the watcher, responsible for it
-            List<Path> children = Files.list(dir).collect(Collectors.toList());
-            for (Path child : children) {
-                if (Files.isDirectory(child)) {
-                    registerInner(child);
-                } else {
-                    processFileEvent(child);
-                }
-            }
-            trackedDirs.add(dir);
-        }
-    }
-
-    private void processFileEvent(Path file) throws IOException {
-        Preconditions.checkArgument(!Files.isDirectory(file));
-        for (FSEventTrigger trigger : triggers) {
-            trigger.onEvent(file);
         }
     }
 
@@ -203,7 +212,9 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
                         continue;
                     }
 
-                    processFSEvent(changedPath);
+                    FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedPath);
+
+                    onEvent(fsEvent);
                 }
             }
 
@@ -214,7 +225,11 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
                 watchKeysToDir.remove(key);
                 if (dir != null) {
                     log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
-                    parentsResponsibleFofChildren.remove(dir);
+                    Set<Path> removedChildren = parentsResponsibleFofChildren.remove(dir);
+                    for (Path child : removedChildren) {
+                        trackedPaths.remove(child);
+                    }
+                    trackedPaths.remove(dir);
                 }
             }
         }
@@ -230,6 +245,30 @@ public class WatchServiceBasedListenerImpl implements FileSystemEventListener {
      */
     private WatchKey registerPathToTheWatcher(Path path) throws IOException {
         return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE);
+    }
+
+    private FileSystemEvent watchEventToFSEvent(WatchEvent.Kind<Path> watchEventKind, Path changedPath) {
+        FileSystemEvent.Kind kind = EVENT_KINDS_MAP.get(watchEventKind);
+        if (kind == null) {
+            throw new UnsupportedOperationException(
+                    String.format("Watch event kind '%s' is not supported", watchEventKind)
+            );
+        }
+        return new FileSystemEvent(kind, changedPath);
+    }
+
+    private ExecutorService createListenerExecutorService(int parallelism) {
+        return Executors.newFixedThreadPool(parallelism, new ThreadFactory() {
+            private final AtomicInteger count = new AtomicInteger(0);
+
+            @Override
+            public Thread newThread(Runnable r) {
+                    String threadName = String.format("listener-%d", count.incrementAndGet());
+                Thread thread = new Thread(r, threadName);
+                thread.setDaemon(true);
+                return thread;
+            }
+        });
     }
 
 }
