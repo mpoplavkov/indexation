@@ -5,9 +5,9 @@ import ru.mpoplavkov.indexation.filter.impl.TextPathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.index.impl.VersionedTermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
-import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
-import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFSEventTrigger;
-import ru.mpoplavkov.indexation.listener.impl.WatchServiceBasedListenerImpl;
+import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
+import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFileChangeEventTrigger;
+import ru.mpoplavkov.indexation.listener.impl.WatchServiceFSSubscriber;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.service.FileSystemIndexService;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
@@ -17,10 +17,6 @@ import ru.mpoplavkov.indexation.text.transformer.impl.IdTermsTransformer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Implementation of the {@link FileSystemIndexService}.
@@ -38,11 +34,9 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
     private final TermsTransformer termsTransformer;
 
     /**
-     * Underlying listener of file events.
+     * Underlying subscriber to the file system events.
      */
-    private final FileSystemEventListener listener;
-
-    private ExecutorService listenerExecutorService;
+    private final FileSystemSubscriber subscriber;
 
     /**
      * Creates the service to interact with the index.
@@ -60,23 +54,15 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
         this.termsTransformer = termsTransformer;
 
         index = new VersionedTermIndex<>();
-        FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, pathFilter, termsExtractor, termsTransformer);
-        listener = new WatchServiceBasedListenerImpl(pathFilter, trigger);
-
-        startListener(listenerThreadsCount);
+        FSEventTrigger trigger =
+                new IndexUpdateFileChangeEventTrigger(index, pathFilter, termsExtractor, termsTransformer);
+        subscriber = new WatchServiceFSSubscriber(pathFilter, trigger);
+        subscriber.startToListenForEvents(listenerThreadsCount);
     }
 
     public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
                                       int listenerThreadsCount) throws IOException {
         this(termsExtractor, new IdTermsTransformer(), new TextPathFilter(), listenerThreadsCount);
-    }
-
-    private void startListener(int parallelism) {
-        listenerExecutorService = createListenerExecutorService(parallelism);
-
-        for (int i = 0; i < parallelism; i++) {
-            listenerExecutorService.execute(listener::listenLoop);
-        }
     }
 
     @Override
@@ -87,29 +73,12 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
     @Override
     public void addToIndex(Path path) throws IOException {
-        listener.register(path);
+        subscriber.subscribe(path);
     }
 
     @Override
     public void close() throws IOException {
-        listener.close();
-        if (listenerExecutorService != null) {
-            listenerExecutorService.shutdownNow();
-        }
-    }
-
-    private ExecutorService createListenerExecutorService(int parallelism) {
-        return Executors.newFixedThreadPool(parallelism, new ThreadFactory() {
-            private final AtomicInteger count = new AtomicInteger(0);
-
-            @Override
-            public Thread newThread(Runnable r) {
-                String threadName = String.format("listener-%d", count.incrementAndGet());
-                Thread thread = new Thread(r, threadName);
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
+        subscriber.close();
     }
 
 }
