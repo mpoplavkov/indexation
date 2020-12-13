@@ -6,7 +6,7 @@ import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.index.impl.VersionedTermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemEventListener;
-import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFSEventTrigger;
+import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFileChangeEventTrigger;
 import ru.mpoplavkov.indexation.listener.impl.WatchServiceBasedListenerImpl;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.service.FileSystemIndexService;
@@ -60,7 +60,7 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
         this.termsTransformer = termsTransformer;
 
         index = new VersionedTermIndex<>();
-        FSEventTrigger trigger = new IndexUpdateFSEventTrigger(index, pathFilter, termsExtractor, termsTransformer);
+        FSEventTrigger trigger = new IndexUpdateFileChangeEventTrigger(index, pathFilter, termsExtractor, termsTransformer);
         listener = new WatchServiceBasedListenerImpl(pathFilter, trigger);
 
         startListener(listenerThreadsCount);

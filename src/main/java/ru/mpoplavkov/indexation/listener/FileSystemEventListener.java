@@ -34,7 +34,7 @@ public interface FileSystemEventListener extends Closeable {
      * @return true iff the path was accepted, false otherwise.
      * @throws IOException if an I/O error occurs.
      */
-    boolean register(Path path) throws IOException;
+    void register(Path path) throws IOException;
 
     // TODO:
     //    void unregister(Path path);
