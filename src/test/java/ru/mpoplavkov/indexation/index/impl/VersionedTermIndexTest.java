@@ -10,12 +10,15 @@ import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.model.term.WordTerm;
 
 import java.util.Set;
+import java.util.function.Predicate;
 
+import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static ru.mpoplavkov.indexation.TestUtils.createSet;
 
 class VersionedTermIndexTest {
 
+    Predicate<String> valueIsActualPredicate = mock(Predicate.class);
     TermIndex<String> index;
 
     String value1 = "value1";
@@ -29,19 +32,26 @@ class VersionedTermIndexTest {
 
     @BeforeEach
     public void init() {
-        index = new VersionedTermIndex<>();
+        index = new VersionedTermIndex<String>() {
+            @Override
+            protected boolean valueIsActual(String value) {
+                return valueIsActualPredicate.test(value);
+            }
+        };
     }
 
     // TODO: generify tests ?
 
     @Test
     public void shouldFindIndexedValueWithSimpleQuery() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(true);
         index.index(value1, createSet(term1));
         assertEquals(createSet(value1), searchByTerm(term1));
     }
 
     @Test
     public void shouldFindIndexedValueByAnotherInstanceOfTheSameTerm() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(true);
         index.index(value1, createSet(term1));
         Term sameTerm = new WordTerm(term1Word);
         assertEquals(createSet(value1), searchByTerm(sameTerm));
@@ -49,6 +59,8 @@ class VersionedTermIndexTest {
 
     @Test
     public void shouldFindSeveralIndexedValuesWithSimpleQuery() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(true);
+        when(valueIsActualPredicate.test(value2)).thenReturn(true);
         index.index(value1, createSet(term1));
         index.index(value2, createSet(term1));
         assertEquals(createSet(value1, value2), searchByTerm(term1));
@@ -68,6 +80,7 @@ class VersionedTermIndexTest {
 
     @Test
     public void shouldFindRecreatedValue() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(true);
         index.index(value1, createSet(term1));
         index.delete(value1);
         index.index(value1, createSet(term1));
@@ -76,6 +89,7 @@ class VersionedTermIndexTest {
 
     @Test
     public void shouldReindexValue() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(true);
         index.index(value1, createSet(term1));
         index.index(value1, createSet(term2));
 
@@ -83,6 +97,22 @@ class VersionedTermIndexTest {
                 () -> assertEquals(createSet(), searchByTerm(term1)),
                 () -> assertEquals(createSet(value1), searchByTerm(term2))
         );
+    }
+
+    @Test
+    public void shouldNotFindNonActualValues() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(false);
+        index.index(value1, createSet(term1));
+        assertEquals(createSet(), searchByTerm(term1));
+    }
+
+    @Test
+    public void shouldFindOnlyActualValues() {
+        when(valueIsActualPredicate.test(value1)).thenReturn(false);
+        when(valueIsActualPredicate.test(value2)).thenReturn(true);
+        index.index(value1, createSet(term1));
+        index.index(value2, createSet(term1));
+        assertEquals(createSet(value2), searchByTerm(term1));
     }
 
     private Set<String> searchByTerm(Term term) {
