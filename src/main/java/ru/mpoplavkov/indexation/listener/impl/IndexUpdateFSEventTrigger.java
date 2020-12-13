@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Trigger that updates underlying index in accordance with events.
@@ -83,10 +85,11 @@ public class IndexUpdateFSEventTrigger implements FSEventTrigger {
         }
         switch (kind) {
             case ENTRY_CREATE:
-                for (Path file : Files.newDirectoryStream(dir)) {
-                    if (!Files.isDirectory(dir)) {
-                        processFileEvent(FileSystemEvent.Kind.ENTRY_CREATE, file);
-                    }
+                List<Path> allFiles = Files.walk(dir)
+                        .filter(f -> !Files.isDirectory(f))
+                        .collect(Collectors.toList());
+                for (Path file : allFiles) {
+                    processFileEvent(FileSystemEvent.Kind.ENTRY_CREATE, file);
                 }
                 break;
             case ENTRY_MODIFY:
