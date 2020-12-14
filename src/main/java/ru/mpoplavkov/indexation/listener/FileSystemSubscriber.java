@@ -22,6 +22,9 @@ public interface FileSystemSubscriber extends Closeable {
      */
     void subscribe(Path path) throws IOException;
 
+    // TODO: implement
+    // void unsubscribe(Path path);
+
     /**
      * Specifies how to process an occurred file system event.
      *
