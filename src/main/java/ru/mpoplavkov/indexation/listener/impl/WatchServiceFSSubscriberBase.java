@@ -44,7 +44,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     protected final Map<Path, Set<Path>> trackedPaths = new ConcurrentHashMap<>();
 
-    private final Set<Path> dirsResponsibleForEveryChild = ConcurrentHashMap.newKeySet();
+    protected final Set<Path> dirsResponsibleForEveryChild = ConcurrentHashMap.newKeySet();
 
     /**
      * Mapping between {@link WatchEvent.Kind} and {@link FileSystemEvent.Kind}.

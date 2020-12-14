@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -52,10 +53,19 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 }
                 break;
             case ENTRY_DELETE:
-                // TODO
+                Set<Path> directoryFiles =
+                        trackedPaths.get(dir)
+                                .stream()
+                                .filter(p -> !Files.isDirectory(p))
+                                .collect(Collectors.toSet());
+                trackedPaths.remove(dir);
+                dirsResponsibleForEveryChild.remove(dir);
+                for (Path file : directoryFiles) {
+                    processFileEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
+                }
                 break;
             case ENTRY_MODIFY:
-                // nothing
+                // nothing, cause modified directory will be processed directly
                 break;
         }
     }
