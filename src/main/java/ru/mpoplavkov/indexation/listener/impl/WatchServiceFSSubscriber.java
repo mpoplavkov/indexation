@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
@@ -38,25 +40,33 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
 
     private void processDirectoryEvent(FileSystemEvent event) throws IOException {
         Path dir = event.getEntry();
-        if (event.getKind() == FileSystemEvent.Kind.ENTRY_DELETE) {
-            return;
+        switch (event.getKind()) {
+            case ENTRY_CREATE:
+                List<Path> children = Files.list(dir).collect(Collectors.toList());
+                for (Path child : children) {
+                    if (Files.isDirectory(child)) {
+                        subscribeInner(child, Optional.empty());
+                    } else {
+                        processFileEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
+                    }
+                }
+                break;
+            case ENTRY_DELETE:
+                // TODO
+                break;
+            case ENTRY_MODIFY:
+                // nothing
+                break;
         }
-        if (trackedPaths.contains(dir)) {
-            // will be processed by the watcher, responsible for it
-            return;
-        }
-        List<Path> children = Files.list(dir).collect(Collectors.toList());
-        for (Path child : children) {
-            if (Files.isDirectory(child)) {
-                subscribe(child);
-            } else {
-                processFileEvent(new FileSystemEvent(event.getKind(), child));
-            }
-        }
-        trackedPaths.add(dir);
     }
 
     private void processFileEvent(FileSystemEvent event) throws IOException {
+        if (event.getKind() == FileSystemEvent.Kind.ENTRY_CREATE) {
+            Path file = event.getEntry();
+            trackedPaths
+                    .computeIfAbsent(file.getParent(), p -> ConcurrentHashMap.newKeySet())
+                    .add(file);
+        }
         for (FSEventTrigger trigger : triggers) {
             trigger.onEvent(event);
         }
