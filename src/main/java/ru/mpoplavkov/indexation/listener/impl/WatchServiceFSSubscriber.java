@@ -63,6 +63,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 for (Path file : directoryFiles) {
                     processFileEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
                 }
+                locksMap.remove(dir);
                 break;
             case ENTRY_MODIFY:
                 // nothing, cause modified directory will be processed directly
