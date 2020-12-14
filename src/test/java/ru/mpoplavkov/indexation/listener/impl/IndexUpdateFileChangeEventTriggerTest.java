@@ -57,12 +57,14 @@ class IndexUpdateFileChangeEventTriggerTest {
     }
 
     @Test
-    public void shouldNotReactOnDeleteFileEvent() throws IOException {
+    public void shouldCorrectlyReactOnDeleteFileEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file);
+        when(pathFilter.filter(any())).thenReturn(true);
         trigger.onEvent(event);
+
         verifyNoInteractions(extractor);
         verifyNoInteractions(transformer);
-        verifyNoInteractions(index);
+        verify(index).delete(file);
     }
 
     @Test
