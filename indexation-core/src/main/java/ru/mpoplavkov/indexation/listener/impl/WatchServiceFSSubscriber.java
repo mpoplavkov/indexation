@@ -11,10 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -93,15 +90,32 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
             case ENTRY_MODIFY:
                 // nothing, cause modified directory will be processed directly
                 break;
+            default:
+                throw new RuntimeException(
+                        String.format("FSEvent kind '%s' is not supported", event.getKind())
+                );
         }
     }
 
     private void fileEventSubscriberSpecificProcessing(FileSystemEvent event) {
-        if (event.getKind() == FileSystemEvent.Kind.ENTRY_CREATE) {
-            Path file = event.getEntry();
-            trackedPaths
-                    .computeIfAbsent(file.getParent(), p -> ConcurrentHashMap.newKeySet())
-                    .add(file);
+        Path file = event.getEntry();
+        switch (event.getKind()) {
+            case ENTRY_CREATE:
+                trackedPaths
+                        .computeIfAbsent(file.getParent(), p -> ConcurrentHashMap.newKeySet())
+                        .add(file);
+                break;
+            case ENTRY_DELETE:
+                Set<Path> set = trackedPaths.getOrDefault(file.getParent(), Collections.emptySet());
+                set.remove(file);
+                break;
+            case ENTRY_MODIFY:
+                // nothing
+                break;
+            default:
+                throw new RuntimeException(
+                        String.format("FSEvent kind '%s' is not supported", event.getKind())
+                );
         }
     }
 

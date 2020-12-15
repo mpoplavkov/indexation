@@ -65,6 +65,10 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
             case ENTRY_DELETE:
                 index.delete(changedFile);
                 break;
+            default:
+                throw new RuntimeException(
+                        String.format("FSEvent kind '%s' is not supported", fileSystemEvent.getKind())
+                );
         }
     }
 
