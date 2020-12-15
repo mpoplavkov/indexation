@@ -4,8 +4,6 @@ JetBrains test assignment.
 ## Things to improve
 
 - implement TODOs
-- tests (event listener, index service)
-- check all access modifiers
 - improve tests quality using different junit features
 
 ## Possible features

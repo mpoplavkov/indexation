@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @param <K> type of the key.
  * @param <V> type of the value.
  */
-public class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
+class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
     private final Map<K, Cache<V, Boolean>> storage = new ConcurrentHashMap<>();
 

@@ -154,7 +154,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      *
      * @param event the event to process
      */
-    abstract void onEvent(FileSystemEvent event);
+    protected abstract void onEvent(FileSystemEvent event);
 
     private final Lock listenerLock = new ReentrantLock();
 

@@ -46,7 +46,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
      * @param event the event to process
      */
     @Override
-    public void onEvent(FileSystemEvent event) {
+    protected void onEvent(FileSystemEvent event) {
         log.info(() -> String.format("Processing event '%s'", event));
         RetryUtil.retry(() -> onEventInner(event), 3);
     }
