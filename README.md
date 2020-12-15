@@ -24,21 +24,15 @@ After that, the API will be available on the ```localhost:8080```.
 The current client provides an HTTP API:
 
 * **POST /subscribe** - subscribes to the given path (a directory or a file). Query parameters:
-  * *path* - the path to subscribe.
+    * *path* - the path to subscribe.
 * **GET /search** - returns a set of found files. Query parameters:
-  * *word* - the word to search in subscribed files.
+    * *word* - the word to search in subscribed files.
   
 ### Example usage of the API
 
 1. ```curl --request POST 'localhost:8080/subscribe?path=.'``` - subscribe to events in the current directory and index all its files.
-2. ```curl --request GET 'localhost:8080/search?word=public'``` - retrieve a set of files containing the word *public*.
-    ```
-    [
-   "/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/config/AppConfiguration.java",
-   "/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/api/SimpleIndexationController.java",
-   "/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/SimpleIndexationApi.java"
-   ]
-    ```
+2. ```curl --request GET 'localhost:8080/search?word=public'``` - retrieve a set of files containing the word *public*. Result for ```.``` directory:
+    * ```["/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/config/AppConfiguration.java","/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/api/SimpleIndexationController.java","/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/SimpleIndexationApi.java"]```
 
 ## Things to improve
 
