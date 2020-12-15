@@ -12,8 +12,6 @@
     <artifactId>indexation-core</artifactId>
     <packaging>jar</packaging>
 
-    <name>indexation core</name>
-
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -8,11 +8,11 @@
     <artifactId>indexation</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
-    <name>indexation</name>
     <description>JetBrains test assignment</description>
 
     <modules>
         <module>indexation-core</module>
+        <module>indexation-cli</module>
     </modules>
 
     <properties>
