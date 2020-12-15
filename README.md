@@ -5,17 +5,10 @@ JetBrains test assignment.
 
 - implement TODOs
 - tests (event listener, index service)
-- compaction for the index (garbage collection)
 - check all access modifiers
 - add logging
 - improve tests quality using different junit features
 - retry requests
-- create client
-- support inner directories
-
-## Notes
-
-- it doesn't track deleted files and directories, so that if they will be recreated, they will no longer be indexed.
 
 ## Possible features
 
