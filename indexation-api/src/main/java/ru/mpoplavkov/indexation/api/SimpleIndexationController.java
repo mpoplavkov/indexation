@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Set;
 
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
@@ -33,9 +34,13 @@ public class SimpleIndexationController {
     private FileSystemIndexService fileSystemIndexService;
 
     @GetMapping("/search")
-    public Set<Path> search(@RequestParam(value = "word") String word) {
+    public Set<String> search(@RequestParam(value = "word") String word) throws IOException {
         Query query = new ExactTerm(new WordTerm(word));
-        return fileSystemIndexService.search(query);
+        Set<String> canonicalPaths = new HashSet<>();
+        for (Path path : fileSystemIndexService.search(query)) {
+            canonicalPaths.add(path.toFile().getCanonicalPath());
+        }
+        return canonicalPaths;
     }
 
     @PostMapping("/subscribe")
