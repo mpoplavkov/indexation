@@ -46,6 +46,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
     protected void onEvent(FileSystemEvent event) {
         log.info(() -> String.format("Processing event '%s'", event));
         RetryUtil.retry(() -> onEventInner(event), 3);
+        log.info(() -> String.format("Event processed '%s'", event));
     }
 
     private void onEventInner(FileSystemEvent event) throws IOException {
