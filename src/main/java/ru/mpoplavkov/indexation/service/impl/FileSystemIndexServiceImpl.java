@@ -3,7 +3,7 @@ package ru.mpoplavkov.indexation.service.impl;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.filter.impl.TextPathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
-import ru.mpoplavkov.indexation.index.impl.VersionedTermPathIndex;
+import ru.mpoplavkov.indexation.index.impl.VersionedTermIndex;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.listener.impl.IndexUpdateFileChangeEventTrigger;
@@ -53,7 +53,7 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
                                       int listenerThreadsCount) throws IOException {
         this.termsTransformer = termsTransformer;
 
-        index = new VersionedTermPathIndex();
+        index = new VersionedTermIndex<>();
         FSEventTrigger trigger =
                 new IndexUpdateFileChangeEventTrigger(index, pathFilter, termsExtractor, termsTransformer);
         subscriber = new WatchServiceFSSubscriber(pathFilter, trigger);

@@ -50,15 +50,18 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
 
     @Override
     public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
-        if (fileSystemEvent.getKind() == FileSystemEvent.Kind.ENTRY_DELETE) {
-            return;
-        }
         Path changedFile = fileSystemEvent.getEntry();
         Preconditions.checkArgument(!Files.isDirectory(changedFile));
-        if (pathFilter.filter(changedFile)) {
-            indexFile(changedFile);
-        } else {
-            log.log(Level.INFO, "File [{0}] did not pass the filter", changedFile.toAbsolutePath());
+        switch (fileSystemEvent.getKind()) {
+            case ENTRY_CREATE:
+            case ENTRY_MODIFY:
+                if (!pathFilter.filter(changedFile)) {
+                    log.log(Level.INFO, "File [{0}] did not pass the filter", changedFile.toAbsolutePath());
+                    return;
+                }
+                indexFile(changedFile);
+            case ENTRY_DELETE:
+                index.delete(changedFile);
         }
     }
 

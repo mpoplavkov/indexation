@@ -10,9 +10,7 @@ import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,15 +43,11 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     /**
      * Set of all tracked paths by this subscriber.
      */
-    protected final Set<Path> trackedPaths = ConcurrentHashMap.newKeySet();
+    protected final Map<Path, Set<Path>> trackedPaths = new ConcurrentHashMap<>();
 
-    /**
-     * Contains the relation between a directory and its children, tracked by
-     * this subscriber.
-     * This is necessary because of limitations of the {@link WatchService},
-     * which allows to register only directories to be watched.
-     */
-    private final Map<Path, Set<Path>> parentsResponsibleFofChildren = new ConcurrentHashMap<>();
+    protected final Set<Path> dirsResponsibleForEveryChild = ConcurrentHashMap.newKeySet();
+
+    protected final Map<Path, Lock> locksMap = new ConcurrentHashMap<>();
 
     /**
      * Mapping between {@link WatchEvent.Kind} and {@link FileSystemEvent.Kind}.
@@ -93,28 +87,42 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         if (!pathFilter.filter(path)) {
             return;
         }
-        if (trackedPaths.contains(path)) {
-            return;
-        }
-        Path directoryToRegister;
+
         if (Files.isDirectory(path)) {
-            parentsResponsibleFofChildren.remove(path);
-            directoryToRegister = path;
+            subscribeInner(path, Optional.empty());
         } else {
             Path parent = path.getParent();
-            directoryToRegister = parent;
-            Set<Path> children = parentsResponsibleFofChildren
-                    .computeIfAbsent(parent, p -> ConcurrentHashMap.newKeySet());
-            children.add(path);
+            subscribeInner(parent, Optional.of(path));
         }
+    }
 
-        WatchKey watchKey = registerPathToTheWatcher(directoryToRegister);
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (watchKey) {
-            // events, associated with the watch key must be processed
-            // exclusively by one thread.
-            watchKeysToDir.put(watchKey, directoryToRegister);
-            onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, path));
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    protected void subscribeInner(Path dir, Optional<Path> childToSubscribe) throws IOException {
+        Lock lock = getLockFor(dir);
+        // events, associated with the directory must be processed
+        // exclusively by one thread.
+        lock.lock();
+        try {
+            Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
+            if (childToSubscribe.isPresent()) {
+                if (pathsTrackedByThisDir.contains(childToSubscribe.get())) {
+                    // nothing to do, already subscribed
+                    return;
+                }
+            } else {
+                boolean alreadyWas = !dirsResponsibleForEveryChild.add(dir);
+                if (alreadyWas) {
+                    // nothing to do, already subscribed
+                    return;
+                }
+            }
+
+            WatchKey watchKey = registerDirToTheWatcher(dir);
+            watchKeysToDir.put(watchKey, dir);
+            // TODO: get rid of synchronization chain?
+            onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, childToSubscribe.orElse(dir)));
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -127,6 +135,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     @Override
     public void close() throws IOException {
         watcher.close();
+        // TODO: lock here and handle closed
         if (listenerExecutorService != null) {
             listenerExecutorService.shutdownNow();
         }
@@ -188,38 +197,40 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         } catch (InterruptedException x) {
             return;
         }
+        Path dir = watchKeysToDir.get(key);
+        if (dir == null) {
+            // wait until watchKeysToDir will be updated
+            key.reset();
+            return;
+        }
 
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (key) {
-            // events, associated with this key are also processed during registration,
-            // that's why synchronization is necessary.
-            Path dir = watchKeysToDir.get(key);
-            if (dir != null) {
-                log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
-                List<WatchEvent<?>> events = key.pollEvents();
-                for (WatchEvent<?> event : events) {
-                    WatchEvent.Kind<?> kind = event.kind();
+        Lock lock = getLockFor(dir);
+        // events, associated with this key are also processed during registration,
+        // that's why synchronization is necessary.
+        lock.lock();
+        try {
+            log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
+            List<WatchEvent<?>> events = key.pollEvents();
+            for (WatchEvent<?> event : events) {
+                WatchEvent.Kind<?> kind = event.kind();
 
-                    // TODO: deal with it
-                    if (kind == OVERFLOW) {
-                        continue;
-                    }
+                // TODO: deal with it
+                if (kind == OVERFLOW) {
+                    continue;
+                }
 
-                    @SuppressWarnings("unchecked")
-                    WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                    Path changedPath = dir.resolve(ev.context());
-                    if (!pathFilter.filter(changedPath)) {
-                        continue;
-                    }
+                @SuppressWarnings("unchecked")
+                WatchEvent<Path> ev = (WatchEvent<Path>) event;
+                Path changedPath = dir.resolve(ev.context());
+                if (!pathFilter.filter(changedPath)) {
+                    continue;
+                }
 
-                    Set<Path> dependentChildren = parentsResponsibleFofChildren.get(dir);
-                    if (dependentChildren != null && !dependentChildren.contains(changedPath)) {
-                        // skip the processing of not dependent files
-                        continue;
-                    }
+                Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
+                if (dirsResponsibleForEveryChild.contains(dir) ||
+                        pathsTrackedByThisDir.contains(changedPath)) {
 
                     FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedPath);
-
                     onEvent(fsEvent);
                 }
             }
@@ -229,15 +240,12 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             boolean valid = key.reset();
             if (!valid) {
                 watchKeysToDir.remove(key);
-                if (dir != null) {
-                    log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
-                    Set<Path> removedChildren = parentsResponsibleFofChildren.remove(dir);
-                    for (Path child : removedChildren) {
-                        trackedPaths.remove(child);
-                    }
-                    trackedPaths.remove(dir);
-                }
+                log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
+                FileSystemEvent fsEvent = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, dir);
+                onEvent(fsEvent);
             }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -249,7 +257,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      * service.
      * @throws IOException if an I/O error occurs.
      */
-    private WatchKey registerPathToTheWatcher(Path path) throws IOException {
+    private WatchKey registerDirToTheWatcher(Path path) throws IOException {
         return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE);
     }
 
@@ -269,12 +277,16 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
 
             @Override
             public Thread newThread(Runnable r) {
-                    String threadName = String.format("listener-%d", count.incrementAndGet());
+                String threadName = String.format("listener-%d", count.incrementAndGet());
                 Thread thread = new Thread(r, threadName);
                 thread.setDaemon(true);
                 return thread;
             }
         });
+    }
+
+    private Lock getLockFor(Path path) {
+        return locksMap.computeIfAbsent(path, p -> new ReentrantLock());
     }
 
 }
