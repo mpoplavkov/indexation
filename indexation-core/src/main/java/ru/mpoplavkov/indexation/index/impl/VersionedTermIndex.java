@@ -1,6 +1,7 @@
 package ru.mpoplavkov.indexation.index.impl;
 
 import lombok.Data;
+import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 import ru.mpoplavkov.indexation.index.TermIndex;
 import ru.mpoplavkov.indexation.model.query.ExactTerm;
@@ -23,6 +24,7 @@ import java.util.stream.Stream;
  *
  * @param <V> type of value to be stored in the index.
  */
+@Log
 public class VersionedTermIndex<V> implements TermIndex<V> {
 
     /**
@@ -39,7 +41,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * If the value's version is negative, it means that the value has been
      * deleted from the index (but possibly not from the storage).
      */
-    // TODO: deal with version overflow
+    // TODO: deal with the version overflow
     private final Map<V, VersionedValue<V>> valueVersions = new ConcurrentHashMap<>();
 
     /**
@@ -70,6 +72,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
             kmvStorage.put(term, newVersionedValue);
         }
         valueVersions.put(value, newVersionedValue);
+        log.config(() -> String.format("Indexed '%s'", newVersionedValue));
     }
 
     /**
@@ -83,6 +86,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
     @Override
     public void delete(V value) {
         valueVersions.computeIfPresent(value, (v, versioned) -> versioned.withNegativeVersion());
+        log.config(() -> String.format("Deleted '%s'", value));
     }
 
     /**

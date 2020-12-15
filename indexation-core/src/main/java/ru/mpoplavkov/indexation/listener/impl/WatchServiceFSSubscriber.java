@@ -1,12 +1,16 @@
 package ru.mpoplavkov.indexation.listener.impl;
 
+import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
+import ru.mpoplavkov.indexation.util.RetryUtil;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +18,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * {@link FileSystemSubscriber}, based on the {@link WatchService}.
+ * Accumulates file system events processing logic.
+ */
+@Log
 public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
 
     private final List<FSEventTrigger> triggers;
@@ -35,10 +44,14 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
      * as user specific processing afterwards.
      *
      * @param event the event to process
-     * @throws IOException if an I/O error occurs.
      */
     @Override
-    public void onEvent(FileSystemEvent event) throws IOException {
+    public void onEvent(FileSystemEvent event) {
+        log.info(() -> String.format("Processing event '%s'", event));
+        RetryUtil.retry(() -> onEventInner(event), 3);
+    }
+
+    private void onEventInner(FileSystemEvent event) throws IOException {
         if (isOrWasADirectory(event.getEntry())) {
             directoryEventSubscriberSpecificProcessing(event);
         } else {
@@ -60,7 +73,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                     if (Files.isDirectory(child)) {
                         subscribeInner(child, Optional.empty());
                     } else {
-                        onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
+                        onEventInner(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
                     }
                 }
                 break;
@@ -73,7 +86,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 trackedPaths.remove(dir);
                 dirsResponsibleForEveryChild.remove(dir);
                 for (Path file : directoryFiles) {
-                    onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
+                    onEventInner(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
                 }
                 locksMap.remove(dir);
                 break;

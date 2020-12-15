@@ -17,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Level;
 
 /**
  * Trigger that updates underlying index in accordance with events.
@@ -58,7 +57,7 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
             case ENTRY_CREATE:
             case ENTRY_MODIFY:
                 if (!pathFilter.filter(changedFile)) {
-                    log.log(Level.INFO, "File [{0}] did not pass the filter", changedFile.toAbsolutePath());
+                    log.info(() -> String.format("File '%s' did not pass the filter", changedFile.toAbsolutePath()));
                     return;
                 }
                 indexFile(changedFile);

@@ -94,6 +94,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             );
         }
         if (!pathFilter.filter(path)) {
+            log.info(() -> String.format("Skipping path '%s' due to filtration logic", path.toAbsolutePath()));
             return;
         }
 
@@ -152,9 +153,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      * Specifies how to process an occurred file system event.
      *
      * @param event the event to process
-     * @throws IOException if an I/O error occurs.
      */
-    abstract void onEvent(FileSystemEvent event) throws IOException;
+    abstract void onEvent(FileSystemEvent event);
 
     private final Lock listenerLock = new ReentrantLock();
 
@@ -166,6 +166,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     @Override
     public void close() throws IOException {
+        log.info("Closing subscriber");
         watcher.close();
         listenerLock.lock();
         try {
@@ -195,6 +196,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             for (int i = 0; i < numberOfListenerThreads; i++) {
                 listenerExecutorService.execute(this::listenLoop);
             }
+            log.info("Listener started");
         } finally {
             listenerLock.unlock();
         }
@@ -203,14 +205,16 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     /**
      * Waits for events and processes them until the listener is cancelled.
      */
-    // TODO: think what to do in case of an error
     @SneakyThrows
     private void listenLoop() {
         while (true) {
             try {
                 waitForFSEventAndProcessIt();
             } catch (ClosedWatchServiceException e) {
+                log.info("Leaving listener loop cause of closed watcher");
                 break;
+            } catch (Exception e) {
+                log.log(Level.SEVERE, e, () -> "Exception occurred in the listener loop. Continue");
             }
         }
     }
@@ -218,10 +222,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     /**
      * Waits for a file system event, checks if it's appropriate and processes
      * it.
-     *
-     * @throws IOException if an I/O error occurs.
      */
-    private void waitForFSEventAndProcessIt() throws IOException {
+    private void waitForFSEventAndProcessIt() {
         // wait for key to be signaled
         WatchKey key;
         try {
@@ -241,13 +243,14 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         // that's why synchronization is necessary.
         lock.lock();
         try {
-            log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
+            log.info(() -> String.format("Some events occurred for directory '%s'", dir.toAbsolutePath()));
             List<WatchEvent<?>> events = key.pollEvents();
             for (WatchEvent<?> event : events) {
                 WatchEvent.Kind<?> kind = event.kind();
 
                 // TODO: deal with it
                 if (kind == OVERFLOW) {
+                    log.severe("Overflow occurred");
                     continue;
                 }
 
@@ -266,18 +269,20 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                     onEvent(fsEvent);
                 }
             }
-
-            // If the key is no longer valid, the directory is inaccessible so stop
-            // listening to its changes.
-            boolean valid = key.reset();
-            if (!valid) {
-                watchKeysToDir.remove(key);
-                log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
-                FileSystemEvent fsEvent = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, dir);
-                onEvent(fsEvent);
-            }
         } finally {
-            lock.unlock();
+            try {
+                boolean valid = key.reset();
+                // If the key is no longer valid, the directory is inaccessible so stop
+                // listening to its changes.
+                if (!valid) {
+                    watchKeysToDir.remove(key);
+                    log.info(() -> String.format("Stop tracking directory '%s'", dir.toAbsolutePath()));
+                    FileSystemEvent fsEvent = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, dir);
+                    onEvent(fsEvent);
+                }
+            } finally {
+                lock.unlock();
+            }
         }
     }
 

@@ -12,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Implementation of {@link KeyMultiValueStorage} based on {@link ConcurrentHashMap}
  * and {@link Cache} with weak keys. All values stored in this storage could
- * potentially be garbage collected if they don't have no strong or soft references
- * on them.
+ * potentially be garbage collected if they don't have any strong or soft references
+ * to them.
  *
  * @param <K> type of the key.
  * @param <V> type of the value.
