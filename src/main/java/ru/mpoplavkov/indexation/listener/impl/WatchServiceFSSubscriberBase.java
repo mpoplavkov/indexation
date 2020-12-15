@@ -8,6 +8,7 @@ import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
@@ -87,6 +88,11 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     @Override
     public void subscribe(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            throw new FileNotFoundException(
+                    String.format("File '%s' doesn't exist", path.toAbsolutePath())
+            );
+        }
         if (!pathFilter.filter(path)) {
             return;
         }
