@@ -7,13 +7,13 @@ import ru.mpoplavkov.indexation.model.query.ExactTerm;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.model.term.WordTerm;
 import ru.mpoplavkov.indexation.service.FileSystemIndexService;
+import ru.mpoplavkov.indexation.util.FileUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -34,13 +34,13 @@ public class SimpleIndexationController {
     private FileSystemIndexService fileSystemIndexService;
 
     @GetMapping("/search")
-    public Set<String> search(@RequestParam(value = "word") String word) throws IOException {
+    public Set<String> search(@RequestParam(value = "word") String word) {
         Query query = new ExactTerm(new WordTerm(word));
-        Set<String> canonicalPaths = new HashSet<>();
-        for (Path path : fileSystemIndexService.search(query)) {
-            canonicalPaths.add(path.toFile().getCanonicalPath());
-        }
-        return canonicalPaths;
+        return fileSystemIndexService
+                .search(query)
+                .stream()
+                .map(FileUtil::getCanonicalPath)
+                .collect(Collectors.toSet());
     }
 
     @PostMapping("/subscribe")

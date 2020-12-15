@@ -18,6 +18,7 @@
     <modules>
         <module>indexation-core</module>
         <module>indexation-api</module>
+        <module>indexation-utils</module>
     </modules>
 
     <properties>
