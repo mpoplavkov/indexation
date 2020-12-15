@@ -11,6 +11,7 @@ import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.source.Source;
 import ru.mpoplavkov.indexation.text.source.impl.FileSource;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
+import ru.mpoplavkov.indexation.util.FileUtil;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -57,7 +58,7 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
             case ENTRY_CREATE:
             case ENTRY_MODIFY:
                 if (!pathFilter.filter(changedFile)) {
-                    log.info(() -> String.format("File '%s' did not pass the filter", changedFile.toAbsolutePath()));
+                    log.info(() -> String.format("File '%s' did not pass the filter", FileUtil.getCanonicalPath(changedFile)));
                     return;
                 }
                 indexFile(changedFile);

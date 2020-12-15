@@ -5,7 +5,7 @@ import lombok.extern.java.Log;
 import java.util.logging.Level;
 
 @Log
-public abstract class RetryUtil {
+public final class RetryUtil {
 
     private RetryUtil() {
     }

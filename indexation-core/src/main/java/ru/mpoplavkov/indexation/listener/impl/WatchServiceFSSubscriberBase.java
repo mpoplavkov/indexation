@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
+import ru.mpoplavkov.indexation.util.FileUtil;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -90,11 +91,11 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     public void subscribe(Path path) throws IOException {
         if (!Files.exists(path)) {
             throw new FileNotFoundException(
-                    String.format("File '%s' doesn't exist", path.toAbsolutePath())
+                    String.format("File '%s' doesn't exist", FileUtil.getCanonicalPath(path))
             );
         }
         if (!pathFilter.filter(path)) {
-            log.info(() -> String.format("Skipping path '%s' due to filtration logic", path.toAbsolutePath()));
+            log.info(() -> String.format("Skipping path '%s' due to filtration logic", FileUtil.getCanonicalPath(path)));
             return;
         }
 
@@ -243,7 +244,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         // that's why synchronization is necessary.
         lock.lock();
         try {
-            log.info(() -> String.format("Some events occurred for directory '%s'", dir.toAbsolutePath()));
+            log.info(() -> String.format("Some events occurred for directory '%s'", FileUtil.getCanonicalPath(dir)));
             List<WatchEvent<?>> events = key.pollEvents();
             for (WatchEvent<?> event : events) {
                 WatchEvent.Kind<?> kind = event.kind();
@@ -276,7 +277,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                 // listening to its changes.
                 if (!valid) {
                     watchKeysToDir.remove(key);
-                    log.info(() -> String.format("Stop tracking directory '%s'", dir.toAbsolutePath()));
+                    log.info(() -> String.format("Stop tracking directory '%s'", FileUtil.getCanonicalPath(dir)));
                     FileSystemEvent fsEvent = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, dir);
                     onEvent(fsEvent);
                 }
