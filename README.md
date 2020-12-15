@@ -23,10 +23,10 @@ After that, the API will be available on the ```localhost:8080```.
 ## Overview of the API
 The current client provides an HTTP API:
 
-- **POST /subscribe** - subscribes to the given path (a directory or a file). Query parameters:
-  - *path* - the path to subscribe.
-- **GET /search** - returns a set of found files. Query parameters:
-  - *word* - the word to search in subscribed files.
+* **POST /subscribe** - subscribes to the given path (a directory or a file). Query parameters:
+  * *path* - the path to subscribe.
+* **GET /search** - returns a set of found files. Query parameters:
+  * *word* - the word to search in subscribed files.
   
 ### Example usage of the API
 
@@ -42,17 +42,17 @@ The current client provides an HTTP API:
 
 ## Things to improve
 
-- implement TODOs
-- improve tests quality using different junit features
+* implement TODOs
+* improve tests quality using different junit features
 
 ## Possible features
 
-- implement complex queries (and, or, not)
+* implement complex queries (and, or, not)
 
 ## Thoughts
 
 ##### Possible implementations of the VersionedTermIndex.search() method
 
-- Two identical requests (implemented).
-- Track of the *updateId* for each update operation and keeping this id along with the version of the value. History of updates of each value should be tracked.
-- Repeatable reads of *valueVersions*.
+* Two identical requests (implemented).
+* Track of the *updateId* for each update operation and keeping this id along with the version of the value. History of updates of each value should be tracked.
+* Repeatable reads of *valueVersions*.
