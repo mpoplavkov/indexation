@@ -3,6 +3,7 @@ package ru.mpoplavkov.indexation.listener.impl;
 import com.google.common.collect.ImmutableMap;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
+import org.jetbrains.annotations.NotNull;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
@@ -301,7 +302,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             private final AtomicInteger count = new AtomicInteger(0);
 
             @Override
-            public Thread newThread(Runnable r) {
+            public Thread newThread(@NotNull Runnable r) {
                 String threadName = String.format("listener-%d", count.incrementAndGet());
                 Thread thread = new Thread(r, threadName);
                 thread.setDaemon(true);
