@@ -250,7 +250,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     }
 
     /**
-     * Registers given path to the watcher with MODIFY and CREATE events to trigger.
+     * Registers given path to the watcher with all possible events to trigger.
      *
      * @param path the path to register.
      * @return a key representing the registration of this object with the watch
@@ -258,7 +258,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      * @throws IOException if an I/O error occurs.
      */
     private WatchKey registerDirToTheWatcher(Path path) throws IOException {
-        return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE);
+        return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE, ENTRY_DELETE);
     }
 
     private FileSystemEvent watchEventToFSEvent(WatchEvent.Kind<Path> watchEventKind, Path changedPath) {
