@@ -67,7 +67,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             );
 
     /**
-     * Creates the subscriber.
+     * Initializes the subscriber base.
      *
      * @param pathFilter filter for paths to check while subscription and processing.
      * @throws IOException if an I/O error occurs.
