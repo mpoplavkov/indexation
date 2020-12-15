@@ -60,8 +60,10 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
                     return;
                 }
                 indexFile(changedFile);
+                break;
             case ENTRY_DELETE:
                 index.delete(changedFile);
+                break;
         }
     }
 
