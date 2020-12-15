@@ -32,7 +32,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
 
     @Override
     public void onEvent(FileSystemEvent event) throws IOException {
-        if (Files.isDirectory(event.getEntry())) {
+        if (isOrWasADirectory(event.getEntry())) {
             processDirectoryEvent(event);
         } else {
             processFileEvent(event);
@@ -56,7 +56,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 Set<Path> directoryFiles =
                         trackedPaths.get(dir)
                                 .stream()
-                                .filter(p -> !Files.isDirectory(p))
+                                .filter(p -> !isOrWasADirectory(p))
                                 .collect(Collectors.toSet());
                 trackedPaths.remove(dir);
                 dirsResponsibleForEveryChild.remove(dir);
@@ -81,5 +81,9 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
         for (FSEventTrigger trigger : triggers) {
             trigger.onEvent(event);
         }
+    }
+
+    private boolean isOrWasADirectory(Path path) {
+        return Files.isDirectory(path) || trackedPaths.containsKey(path);
     }
 }
