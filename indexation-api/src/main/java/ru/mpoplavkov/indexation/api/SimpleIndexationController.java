@@ -38,8 +38,8 @@ public class SimpleIndexationController {
         return fileSystemIndexService.search(query);
     }
 
-    @PostMapping("/register")
-    public void register(@RequestParam(value = "path") String path) throws IOException {
+    @PostMapping("/subscribe")
+    public void subscribe(@RequestParam(value = "path") String path) throws IOException {
         File file = new File(path);
         fileSystemIndexService.addToIndex(file.toPath());
     }
