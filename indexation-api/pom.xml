@@ -9,7 +9,7 @@
         <artifactId>indexation</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-    <artifactId>indexation-cli</artifactId>
+    <artifactId>indexation-api</artifactId>
     <packaging>jar</packaging>
 
 </project>
