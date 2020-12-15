@@ -60,7 +60,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                     if (Files.isDirectory(child)) {
                         subscribeInner(child, Optional.empty());
                     } else {
-                        fileEventSubscriberSpecificProcessing(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
+                        onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
                     }
                 }
                 break;
@@ -73,7 +73,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 trackedPaths.remove(dir);
                 dirsResponsibleForEveryChild.remove(dir);
                 for (Path file : directoryFiles) {
-                    fileEventSubscriberSpecificProcessing(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
+                    onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
                 }
                 locksMap.remove(dir);
                 break;
