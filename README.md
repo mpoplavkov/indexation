@@ -6,9 +6,7 @@ JetBrains test assignment.
 - implement TODOs
 - tests (event listener, index service)
 - check all access modifiers
-- add logging
 - improve tests quality using different junit features
-- retry requests
 
 ## Possible features
 
