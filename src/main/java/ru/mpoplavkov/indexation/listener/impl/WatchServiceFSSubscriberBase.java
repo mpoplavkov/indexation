@@ -3,6 +3,7 @@ package ru.mpoplavkov.indexation.listener.impl;
 import com.google.common.collect.ImmutableMap;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
+import org.jetbrains.annotations.NotNull;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
@@ -36,17 +37,25 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     private ExecutorService listenerExecutorService;
 
     /**
-     * Mapping from watch keys to the paths tracked by those keys.
+     * Mapping from watch keys to paths tracked by those keys.
      */
     private final Map<WatchKey, Path> watchKeysToDir = new ConcurrentHashMap<>();
 
     /**
-     * Set of all tracked paths by this subscriber.
+     * Map from tracked paths to their registered children.
      */
     protected final Map<Path, Set<Path>> trackedPaths = new ConcurrentHashMap<>();
 
+    /**
+     * Set of registered directories. This set doesn't contain directories, that
+     * were registered to the watcher in order to tack specific files updates.
+     */
     protected final Set<Path> dirsResponsibleForEveryChild = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Map containing lock for every directory used in the subscriber. This is necessary
+     * in order to process directories exclusively by one thread.
+     */
     protected final Map<Path, Lock> locksMap = new ConcurrentHashMap<>();
 
     /**
@@ -60,9 +69,9 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             );
 
     /**
-     * Creates the subscriber.
+     * Initializes the subscriber base.
      *
-     * @param pathFilter filter for paths to check while registration and processing.
+     * @param pathFilter filter for paths to check while subscription and processing.
      * @throws IOException if an I/O error occurs.
      */
     public WatchServiceFSSubscriberBase(PathFilter pathFilter) throws IOException {
@@ -96,6 +105,16 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         }
     }
 
+    /**
+     * Contains inner logic for subscription.
+     * Registers given directory to the watcher and processes a create event of
+     * the directory or the file (if {@code childToSubscribe} is not empty).
+     *
+     * @param dir              directory to subscribe.
+     * @param childToSubscribe concrete file to listen in this directory. If empty,
+     *                         the full directory will be listened.
+     * @throws IOException if an I/O error occurs.
+     */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     protected void subscribeInner(Path dir, Optional<Path> childToSubscribe) throws IOException {
         Lock lock = getLockFor(dir);
@@ -120,11 +139,24 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             WatchKey watchKey = registerDirToTheWatcher(dir);
             watchKeysToDir.put(watchKey, dir);
             // TODO: get rid of synchronization chain?
+            //  There could be no dead locks, cause every next lock associates
+            //  with the child of the locked directory, i.e. locks are ordered.
+            //  So this is not critical.
             onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, childToSubscribe.orElse(dir)));
         } finally {
             lock.unlock();
         }
     }
+
+    /**
+     * Specifies how to process an occurred file system event.
+     *
+     * @param event the event to process
+     * @throws IOException if an I/O error occurs.
+     */
+    abstract void onEvent(FileSystemEvent event) throws IOException;
+
+    private final Lock listenerLock = new ReentrantLock();
 
     /**
      * Closes the underlying {@link WatchService} and the listener executor
@@ -135,28 +167,28 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     @Override
     public void close() throws IOException {
         watcher.close();
-        // TODO: lock here and handle closed
-        if (listenerExecutorService != null) {
-            listenerExecutorService.shutdownNow();
+        listenerLock.lock();
+        try {
+            if (listenerExecutorService != null) {
+                listenerExecutorService.shutdownNow();
+            }
+        } finally {
+            listenerLock.unlock();
         }
     }
-
-    private final Lock listenerLock = new ReentrantLock();
 
     /**
      * Creates an {@link ExecutorService} and submits to it a specified
      * number of threads that will listen for events in an infinite loop.
      *
-     * @param numberOfListenerThreads number of threads to listen for
-     *                                events.
+     * @param numberOfListenerThreads number of threads to listen for events.
      */
     @Override
     public void startToListenForEvents(int numberOfListenerThreads) {
         listenerLock.lock();
         try {
             if (listenerExecutorService != null) {
-                log.log(Level.WARNING, "The listener has already been started");
-                return;
+                throw new RuntimeException("The listener has already been started");
             }
             listenerExecutorService = createListenerExecutorService(numberOfListenerThreads);
 
@@ -173,7 +205,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     // TODO: think what to do in case of an error
     @SneakyThrows
-    public void listenLoop() {
+    private void listenLoop() {
         while (true) {
             try {
                 waitForFSEventAndProcessIt();
@@ -276,7 +308,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             private final AtomicInteger count = new AtomicInteger(0);
 
             @Override
-            public Thread newThread(Runnable r) {
+            public Thread newThread(@NotNull Runnable r) {
                 String threadName = String.format("listener-%d", count.incrementAndGet());
                 Thread thread = new Thread(r, threadName);
                 thread.setDaemon(true);

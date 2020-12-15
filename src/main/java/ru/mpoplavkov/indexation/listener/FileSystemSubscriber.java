@@ -1,7 +1,5 @@
 package ru.mpoplavkov.indexation.listener;
 
-import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -24,14 +22,6 @@ public interface FileSystemSubscriber extends Closeable {
 
     // TODO: implement
     // void unsubscribe(Path path);
-
-    /**
-     * Specifies how to process an occurred file system event.
-     *
-     * @param event the event to process
-     * @throws IOException if an I/O error occurs.
-     */
-    void onEvent(FileSystemEvent event) throws IOException;
 
     /**
      * Starts threads for listening the file system for events

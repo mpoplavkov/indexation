@@ -19,7 +19,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
     private final List<FSEventTrigger> triggers;
 
     /**
-     * Creates the listener.
+     * Creates the subscriber.
      *
      * @param pathFilter filter for files to check while registration and processing.
      * @param triggers   triggers to apply for found events.
@@ -30,16 +30,28 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
         this.triggers = Arrays.asList(triggers);
     }
 
+    /**
+     * Handles some subscriber specific logic for event processing as well
+     * as user specific processing afterwards.
+     *
+     * @param event the event to process
+     * @throws IOException if an I/O error occurs.
+     */
     @Override
     public void onEvent(FileSystemEvent event) throws IOException {
         if (isOrWasADirectory(event.getEntry())) {
-            processDirectoryEvent(event);
+            directoryEventSubscriberSpecificProcessing(event);
         } else {
-            processFileEvent(event);
+            fileEventSubscriberSpecificProcessing(event);
+        }
+
+        // user defined processing
+        for (FSEventTrigger trigger : triggers) {
+            trigger.onEvent(event);
         }
     }
 
-    private void processDirectoryEvent(FileSystemEvent event) throws IOException {
+    private void directoryEventSubscriberSpecificProcessing(FileSystemEvent event) throws IOException {
         Path dir = event.getEntry();
         switch (event.getKind()) {
             case ENTRY_CREATE:
@@ -48,7 +60,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                     if (Files.isDirectory(child)) {
                         subscribeInner(child, Optional.empty());
                     } else {
-                        processFileEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
+                        fileEventSubscriberSpecificProcessing(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
                     }
                 }
                 break;
@@ -61,7 +73,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 trackedPaths.remove(dir);
                 dirsResponsibleForEveryChild.remove(dir);
                 for (Path file : directoryFiles) {
-                    processFileEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
+                    fileEventSubscriberSpecificProcessing(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
                 }
                 locksMap.remove(dir);
                 break;
@@ -71,18 +83,22 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
         }
     }
 
-    private void processFileEvent(FileSystemEvent event) throws IOException {
+    private void fileEventSubscriberSpecificProcessing(FileSystemEvent event) {
         if (event.getKind() == FileSystemEvent.Kind.ENTRY_CREATE) {
             Path file = event.getEntry();
             trackedPaths
                     .computeIfAbsent(file.getParent(), p -> ConcurrentHashMap.newKeySet())
                     .add(file);
         }
-        for (FSEventTrigger trigger : triggers) {
-            trigger.onEvent(event);
-        }
     }
 
+    /**
+     * Checks if the given path is a directory or was a directory (in case
+     * if this path was already deleted).
+     *
+     * @param path path to check
+     * @return true if is or was a directory.
+     */
     private boolean isOrWasADirectory(Path path) {
         return Files.isDirectory(path) || trackedPaths.containsKey(path);
     }
