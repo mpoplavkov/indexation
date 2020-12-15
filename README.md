@@ -22,12 +22,14 @@ After that, the API will be available on the ```localhost:8080```.
 
 ## Overview of the API
 The current client provides an HTTP API:
+
 - **POST /subscribe** - subscribes to the given path (a directory or a file). Query parameters:
   - *path* - the path to subscribe.
 - **GET /search** - returns a set of found files. Query parameters:
   - *word* - the word to search in subscribed files.
   
 ### Example usage of the API
+
 1. ```curl --request POST 'localhost:8080/subscribe?path=.'``` - subscribe to events in the current directory and index all its files.
 2. ```curl --request GET 'localhost:8080/search?word=public'``` - retrieve a set of files containing the word *public*.
     ```
