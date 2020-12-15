@@ -65,6 +65,12 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
         this(termsExtractor, new IdTermsTransformer(), new TextPathFilter(), listenerThreadsCount);
     }
 
+    public FileSystemIndexServiceImpl(TermsExtractor termsExtractor,
+                                      TermsTransformer termsTransformer,
+                                      int listenerThreadsCount) throws IOException {
+        this(termsExtractor, termsTransformer, new TextPathFilter(), listenerThreadsCount);
+    }
+
     @Override
     public Set<Path> search(Query query) {
         Query transformedQuery = query.transform(termsTransformer);
