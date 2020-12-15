@@ -22,7 +22,7 @@ public interface FileSystemIndexService extends Closeable {
 
     /**
      * Adds the given path to the index. Starts to listen to it's
-     * changes and update the index accordingly.
+     * changes and updates the index accordingly.
      *
      * @param path the path to add to the index.
      * @throws IOException if an I/O error occurs.
