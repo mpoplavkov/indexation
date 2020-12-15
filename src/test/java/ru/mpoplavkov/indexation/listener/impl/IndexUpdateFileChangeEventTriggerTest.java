@@ -13,7 +13,6 @@ import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static ru.mpoplavkov.indexation.TestUtils.createSet;
@@ -57,18 +56,25 @@ class IndexUpdateFileChangeEventTriggerTest {
     }
 
     @Test
-    public void shouldNotReactOnDeleteFileEvent() throws IOException {
+    public void shouldCorrectlyReactOnDeleteFileEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file);
+        when(pathFilter.filter(any())).thenReturn(true);
         trigger.onEvent(event);
+
         verifyNoInteractions(extractor);
         verifyNoInteractions(transformer);
-        verifyNoInteractions(index);
+        verify(index).delete(file);
     }
 
     @Test
-    public void shouldCorrectlyReactOnDirectoryEvent() throws IOException {
+    public void shouldSkipDirectoryEvent() throws IOException {
         FileSystemEvent event = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, dir);
-        assertThrows(IllegalArgumentException.class, () -> trigger.onEvent(event));
+        trigger.onEvent(event);
+
+        verifyNoInteractions(extractor);
+        verifyNoInteractions(transformer);
+        verifyNoInteractions(pathFilter);
+        verifyNoInteractions(index);
     }
 
     @Test

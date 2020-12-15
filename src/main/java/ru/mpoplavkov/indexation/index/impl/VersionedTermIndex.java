@@ -7,7 +7,6 @@ import ru.mpoplavkov.indexation.model.query.ExactTerm;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.model.term.Term;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,14 +23,7 @@ import java.util.stream.Stream;
  *
  * @param <V> type of value to be stored in the index.
  */
-public abstract class VersionedTermIndex<V> implements TermIndex<V> {
-
-    /**
-     * Predicate function for values, stored in the index. The function
-     * will be called on each select from the index. Only actual values,
-     * according to this function will be returned.
-     */
-    protected abstract boolean valueIsActual(V value);
+public class VersionedTermIndex<V> implements TermIndex<V> {
 
     /**
      * The underlying storage. Stores values along with their versions.
@@ -149,22 +141,11 @@ public abstract class VersionedTermIndex<V> implements TermIndex<V> {
 
             Set<VersionedValue<V>> secondQueryResult = kmvStorage.get(termToSearch);
 
-            Set<V> resultSet = new HashSet<>();
-            for (VersionedValue<V> resultValue : secondQueryResult) {
-                if (!versionsSnapshot.contains(resultValue)) {
-                    // nothing to do with it
-                    continue;
-                }
-                if (valueIsActual(resultValue.getValue())) {
-                    resultSet.add(resultValue.getValue());
-                } else {
-                    // TODO: delete value from the index.
-                    //  Only value with `resultValue.getVersion()` should be deleted.
-                    //  Check of the version and deletion should be done atomically
-                    //  to prevent deletion of recreated files. AtomicReference?
-                }
-            }
-            return resultSet;
+            return secondQueryResult
+                    .stream()
+                    .filter(versionsSnapshot::contains)
+                    .map(VersionedValue::getValue)
+                    .collect(Collectors.toSet());
         }
 
         throw new UnsupportedOperationException(

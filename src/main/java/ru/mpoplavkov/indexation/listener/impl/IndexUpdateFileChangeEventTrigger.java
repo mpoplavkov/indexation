@@ -1,6 +1,5 @@
 package ru.mpoplavkov.indexation.listener.impl;
 
-import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
@@ -50,15 +49,23 @@ public class IndexUpdateFileChangeEventTrigger implements FSEventTrigger {
 
     @Override
     public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
-        if (fileSystemEvent.getKind() == FileSystemEvent.Kind.ENTRY_DELETE) {
+        Path changedFile = fileSystemEvent.getEntry();
+        if (Files.isDirectory(changedFile)) {
+            // skip
             return;
         }
-        Path changedFile = fileSystemEvent.getEntry();
-        Preconditions.checkArgument(!Files.isDirectory(changedFile));
-        if (pathFilter.filter(changedFile)) {
-            indexFile(changedFile);
-        } else {
-            log.log(Level.INFO, "File [{0}] did not pass the filter", changedFile.toAbsolutePath());
+        switch (fileSystemEvent.getKind()) {
+            case ENTRY_CREATE:
+            case ENTRY_MODIFY:
+                if (!pathFilter.filter(changedFile)) {
+                    log.log(Level.INFO, "File [{0}] did not pass the filter", changedFile.toAbsolutePath());
+                    return;
+                }
+                indexFile(changedFile);
+                break;
+            case ENTRY_DELETE:
+                index.delete(changedFile);
+                break;
         }
     }
 

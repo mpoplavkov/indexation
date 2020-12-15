@@ -3,15 +3,14 @@ package ru.mpoplavkov.indexation.listener.impl;
 import com.google.common.collect.ImmutableMap;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
+import org.jetbrains.annotations.NotNull;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,22 +36,26 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     private ExecutorService listenerExecutorService;
 
     /**
-     * Mapping from watch keys to the paths tracked by those keys.
+     * Mapping from watch keys to paths tracked by those keys.
      */
     private final Map<WatchKey, Path> watchKeysToDir = new ConcurrentHashMap<>();
 
     /**
-     * Set of all tracked paths by this subscriber.
+     * Map from tracked paths to their registered children.
      */
-    protected final Set<Path> trackedPaths = ConcurrentHashMap.newKeySet();
+    protected final Map<Path, Set<Path>> trackedPaths = new ConcurrentHashMap<>();
 
     /**
-     * Contains the relation between a directory and its children, tracked by
-     * this subscriber.
-     * This is necessary because of limitations of the {@link WatchService},
-     * which allows to register only directories to be watched.
+     * Set of registered directories. This set doesn't contain directories, that
+     * were registered to the watcher in order to tack specific files updates.
      */
-    private final Map<Path, Set<Path>> parentsResponsibleFofChildren = new ConcurrentHashMap<>();
+    protected final Set<Path> dirsResponsibleForEveryChild = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Map containing lock for every directory used in the subscriber. This is necessary
+     * in order to process directories exclusively by one thread.
+     */
+    protected final Map<Path, Lock> locksMap = new ConcurrentHashMap<>();
 
     /**
      * Mapping between {@link WatchEvent.Kind} and {@link FileSystemEvent.Kind}.
@@ -65,9 +68,9 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             );
 
     /**
-     * Creates the subscriber.
+     * Initializes the subscriber base.
      *
-     * @param pathFilter filter for paths to check while registration and processing.
+     * @param pathFilter filter for paths to check while subscription and processing.
      * @throws IOException if an I/O error occurs.
      */
     public WatchServiceFSSubscriberBase(PathFilter pathFilter) throws IOException {
@@ -87,30 +90,67 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         if (!pathFilter.filter(path)) {
             return;
         }
-        if (trackedPaths.contains(path)) {
-            return;
-        }
-        Path directoryToRegister;
+
         if (Files.isDirectory(path)) {
-            parentsResponsibleFofChildren.remove(path);
-            directoryToRegister = path;
+            subscribeInner(path, Optional.empty());
         } else {
             Path parent = path.getParent();
-            directoryToRegister = parent;
-            Set<Path> children = parentsResponsibleFofChildren
-                    .computeIfAbsent(parent, p -> ConcurrentHashMap.newKeySet());
-            children.add(path);
-        }
-
-        WatchKey watchKey = registerPathToTheWatcher(directoryToRegister);
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (watchKey) {
-            // events, associated with the watch key must be processed
-            // exclusively by one thread.
-            watchKeysToDir.put(watchKey, directoryToRegister);
-            onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, path));
+            subscribeInner(parent, Optional.of(path));
         }
     }
+
+    /**
+     * Contains inner logic for subscription.
+     * Registers given directory to the watcher and processes a create event of
+     * the directory or the file (if {@code childToSubscribe} is not empty).
+     *
+     * @param dir              directory to subscribe.
+     * @param childToSubscribe concrete file to listen in this directory. If empty,
+     *                         the full directory will be listened.
+     * @throws IOException if an I/O error occurs.
+     */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    protected void subscribeInner(Path dir, Optional<Path> childToSubscribe) throws IOException {
+        Lock lock = getLockFor(dir);
+        // events, associated with the directory must be processed
+        // exclusively by one thread.
+        lock.lock();
+        try {
+            Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
+            if (childToSubscribe.isPresent()) {
+                if (pathsTrackedByThisDir.contains(childToSubscribe.get())) {
+                    // nothing to do, already subscribed
+                    return;
+                }
+            } else {
+                boolean alreadyWas = !dirsResponsibleForEveryChild.add(dir);
+                if (alreadyWas) {
+                    // nothing to do, already subscribed
+                    return;
+                }
+            }
+
+            WatchKey watchKey = registerDirToTheWatcher(dir);
+            watchKeysToDir.put(watchKey, dir);
+            // TODO: get rid of synchronization chain?
+            //  There could be no dead locks, cause every next lock associates
+            //  with the child of the locked directory, i.e. locks are ordered.
+            //  So this is not critical.
+            onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, childToSubscribe.orElse(dir)));
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Specifies how to process an occurred file system event.
+     *
+     * @param event the event to process
+     * @throws IOException if an I/O error occurs.
+     */
+    abstract void onEvent(FileSystemEvent event) throws IOException;
+
+    private final Lock listenerLock = new ReentrantLock();
 
     /**
      * Closes the underlying {@link WatchService} and the listener executor
@@ -121,27 +161,28 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     @Override
     public void close() throws IOException {
         watcher.close();
-        if (listenerExecutorService != null) {
-            listenerExecutorService.shutdownNow();
+        listenerLock.lock();
+        try {
+            if (listenerExecutorService != null) {
+                listenerExecutorService.shutdownNow();
+            }
+        } finally {
+            listenerLock.unlock();
         }
     }
-
-    private final Lock listenerLock = new ReentrantLock();
 
     /**
      * Creates an {@link ExecutorService} and submits to it a specified
      * number of threads that will listen for events in an infinite loop.
      *
-     * @param numberOfListenerThreads number of threads to listen for
-     *                                events.
+     * @param numberOfListenerThreads number of threads to listen for events.
      */
     @Override
     public void startToListenForEvents(int numberOfListenerThreads) {
         listenerLock.lock();
         try {
             if (listenerExecutorService != null) {
-                log.log(Level.WARNING, "The listener has already been started");
-                return;
+                throw new RuntimeException("The listener has already been started");
             }
             listenerExecutorService = createListenerExecutorService(numberOfListenerThreads);
 
@@ -158,7 +199,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     // TODO: think what to do in case of an error
     @SneakyThrows
-    public void listenLoop() {
+    private void listenLoop() {
         while (true) {
             try {
                 waitForFSEventAndProcessIt();
@@ -182,38 +223,40 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         } catch (InterruptedException x) {
             return;
         }
+        Path dir = watchKeysToDir.get(key);
+        if (dir == null) {
+            // wait until watchKeysToDir will be updated
+            key.reset();
+            return;
+        }
 
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (key) {
-            // events, associated with this key are also processed during registration,
-            // that's why synchronization is necessary.
-            Path dir = watchKeysToDir.get(key);
-            if (dir != null) {
-                log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
-                List<WatchEvent<?>> events = key.pollEvents();
-                for (WatchEvent<?> event : events) {
-                    WatchEvent.Kind<?> kind = event.kind();
+        Lock lock = getLockFor(dir);
+        // events, associated with this key are also processed during registration,
+        // that's why synchronization is necessary.
+        lock.lock();
+        try {
+            log.log(Level.INFO, "Some events occurred for directory [{0}]", dir.toAbsolutePath());
+            List<WatchEvent<?>> events = key.pollEvents();
+            for (WatchEvent<?> event : events) {
+                WatchEvent.Kind<?> kind = event.kind();
 
-                    // TODO: deal with it
-                    if (kind == OVERFLOW) {
-                        continue;
-                    }
+                // TODO: deal with it
+                if (kind == OVERFLOW) {
+                    continue;
+                }
 
-                    @SuppressWarnings("unchecked")
-                    WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                    Path changedPath = dir.resolve(ev.context());
-                    if (!pathFilter.filter(changedPath)) {
-                        continue;
-                    }
+                @SuppressWarnings("unchecked")
+                WatchEvent<Path> ev = (WatchEvent<Path>) event;
+                Path changedPath = dir.resolve(ev.context());
+                if (!pathFilter.filter(changedPath)) {
+                    continue;
+                }
 
-                    Set<Path> dependentChildren = parentsResponsibleFofChildren.get(dir);
-                    if (dependentChildren != null && !dependentChildren.contains(changedPath)) {
-                        // skip the processing of not dependent files
-                        continue;
-                    }
+                Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
+                if (dirsResponsibleForEveryChild.contains(dir) ||
+                        pathsTrackedByThisDir.contains(changedPath)) {
 
                     FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedPath);
-
                     onEvent(fsEvent);
                 }
             }
@@ -223,28 +266,25 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             boolean valid = key.reset();
             if (!valid) {
                 watchKeysToDir.remove(key);
-                if (dir != null) {
-                    log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
-                    Set<Path> removedChildren = parentsResponsibleFofChildren.remove(dir);
-                    for (Path child : removedChildren) {
-                        trackedPaths.remove(child);
-                    }
-                    trackedPaths.remove(dir);
-                }
+                log.log(Level.INFO, "Stop tracking directory [{0}]", dir.toAbsolutePath());
+                FileSystemEvent fsEvent = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, dir);
+                onEvent(fsEvent);
             }
+        } finally {
+            lock.unlock();
         }
     }
 
     /**
-     * Registers given path to the watcher with MODIFY and CREATE events to trigger.
+     * Registers given path to the watcher with all possible events to trigger.
      *
      * @param path the path to register.
      * @return a key representing the registration of this object with the watch
      * service.
      * @throws IOException if an I/O error occurs.
      */
-    private WatchKey registerPathToTheWatcher(Path path) throws IOException {
-        return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE);
+    private WatchKey registerDirToTheWatcher(Path path) throws IOException {
+        return path.register(watcher, ENTRY_MODIFY, ENTRY_CREATE, ENTRY_DELETE);
     }
 
     private FileSystemEvent watchEventToFSEvent(WatchEvent.Kind<Path> watchEventKind, Path changedPath) {
@@ -262,13 +302,17 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             private final AtomicInteger count = new AtomicInteger(0);
 
             @Override
-            public Thread newThread(Runnable r) {
-                    String threadName = String.format("listener-%d", count.incrementAndGet());
+            public Thread newThread(@NotNull Runnable r) {
+                String threadName = String.format("listener-%d", count.incrementAndGet());
                 Thread thread = new Thread(r, threadName);
                 thread.setDaemon(true);
                 return thread;
             }
         });
+    }
+
+    private Lock getLockFor(Path path) {
+        return locksMap.computeIfAbsent(path, p -> new ReentrantLock());
     }
 
 }
