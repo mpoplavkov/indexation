@@ -12,13 +12,23 @@ The library is extendable.
 It allows to implement additional words extraction, path filtration and words transformation logic.
 For example, if you want to index lemmas instead of original words, you should implement TermsTransformer and provide it when you create the index service. 
 
-## How to run the HTTP client
-### Maven
+Properties:
+
+* Index is in-memory, so all its information will be lost after a restart.
+* It takes some time to respond to file system events, usually a few seconds.
+
+## How to
+### Run the HTTP client
+#### Using maven
 To run the application locally, execute the following command from the root folder:
 ```
 mvn -pl indexation-api spring-boot:run
 ```
 After that, the API will be available on the ```localhost:8080```.
+
+### Run integration tests
+Integration tests are disabled in order to not execute them during the project build, because they take a long time to run.
+To enable them, go to ```src/test/java/ru/mpoplavkov/indexation/integration/IntegrationIndexServiceTest.java``` and remove the ```@Disabled``` junit annotation.
 
 ## Overview of the API
 The current client provides an HTTP API:
