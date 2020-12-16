@@ -19,7 +19,6 @@ Properties:
 
 ## How to
 ### Run the HTTP client
-#### Using maven
 To run the application locally, execute the following command from the root folder:
 ```
 mvn -pl indexation-api spring-boot:run
