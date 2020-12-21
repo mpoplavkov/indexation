@@ -29,4 +29,13 @@ public interface FileSystemIndexService extends Closeable {
      */
     void addToIndex(Path path) throws IOException;
 
+    /**
+     * Removes the given path from the index, if it was there, and
+     * stops to listen to its changes, except recreations.
+     *
+     * @param path the path to remove from the index.
+     * @throws IOException if an I/O error occurs.
+     */
+    void removeFromIndex(Path path) throws IOException;
+
 }

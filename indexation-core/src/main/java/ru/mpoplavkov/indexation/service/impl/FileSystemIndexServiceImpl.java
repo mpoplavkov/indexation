@@ -83,6 +83,11 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
     }
 
     @Override
+    public void removeFromIndex(Path path) throws IOException {
+        subscriber.unsubscribe(path);
+    }
+
+    @Override
     public void close() throws IOException {
         subscriber.close();
     }
