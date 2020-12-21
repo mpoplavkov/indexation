@@ -147,7 +147,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     }
 
     @Override
-    public void unsubscribe(Path path) throws FileNotFoundException {
+    public void unsubscribe(Path path) throws IOException {
         checkPathExists(path);
         if (Files.isDirectory(path)) {
             unsubscribeInner(path, Optional.empty());
@@ -167,8 +167,10 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      *                           If empty, the full directory will be unsubscribed.
      */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private void unsubscribeInner(Path dir, Optional<Path> childToUnsubscribe) {
-        if (!trackedPaths.containsKey(dir)) {
+    private void unsubscribeInner(Path dir, Optional<Path> childToUnsubscribe) throws IOException {
+        // TODO: remove a watch key
+        Set<Path> children = trackedPaths.get(dir);
+        if (children == null) {
             // nothing to do, wasn't subscribed
             return;
         }
@@ -177,17 +179,20 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         try {
             if (childToUnsubscribe.isPresent()) {
                 Path child = childToUnsubscribe.get();
-                Set<Path> children = trackedPaths.get(dir);
-                boolean wasTracked = false;
-                if (children != null) {
-                    wasTracked = children.remove(child);
-                }
+                boolean wasTracked = children.remove(child);
                 if (!wasTracked) {
                     // nothing to do
                     return;
                 }
                 if (children.isEmpty()) {
                     trackedPaths.remove(dir);
+                }
+            } else {
+                // unsubscribe all child directories
+                for (Path path : children) {
+                    if (Files.isDirectory(path)) {
+                        unsubscribeInner(path, Optional.empty());
+                    }
                 }
             }
 
