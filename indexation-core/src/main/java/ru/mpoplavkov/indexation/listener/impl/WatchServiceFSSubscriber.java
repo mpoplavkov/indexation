@@ -82,7 +82,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                                 .filter(p -> !isOrWasADirectory(p))
                                 .collect(Collectors.toSet());
                 trackedPaths.remove(dir);
-                dirsResponsibleForEveryChild.remove(dir);
+                dirsResponsibleForNewFiles.remove(dir);
                 for (Path file : directoryFiles) {
                     onEventInner(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
                 }

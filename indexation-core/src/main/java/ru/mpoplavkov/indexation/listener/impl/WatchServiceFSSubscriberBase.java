@@ -49,9 +49,9 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
 
     /**
      * Set of registered directories. This set doesn't contain directories, that
-     * were registered to the watcher in order to tack specific files updates.
+     * were registered to the watcher in order to track specific files updates.
      */
-    protected final Set<Path> dirsResponsibleForEveryChild = ConcurrentHashMap.newKeySet();
+    protected final Set<Path> dirsResponsibleForNewFiles = ConcurrentHashMap.newKeySet();
 
     /**
      * Map containing lock for every directory used in the subscriber. This is necessary
@@ -89,11 +89,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     @Override
     public void subscribe(Path path) throws IOException {
-        if (!Files.exists(path)) {
-            throw new FileNotFoundException(
-                    String.format("File '%s' doesn't exist", FileUtil.getCanonicalPath(path))
-            );
-        }
+        checkPathExists(path);
         if (!pathFilter.filter(path)) {
             log.info(() -> String.format("Skipping path '%s' due to filtration logic", FileUtil.getCanonicalPath(path)));
             return;
@@ -131,7 +127,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                     return;
                 }
             } else {
-                boolean alreadyWas = !dirsResponsibleForEveryChild.add(dir);
+                boolean alreadyWas = !dirsResponsibleForNewFiles.add(dir);
                 if (alreadyWas) {
                     // nothing to do, already subscribed
                     return;
@@ -147,6 +143,65 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, childToSubscribe.orElse(dir)));
         } finally {
             lock.unlock();
+        }
+    }
+
+    @Override
+    public void unsubscribe(Path path) throws FileNotFoundException {
+        checkPathExists(path);
+        if (Files.isDirectory(path)) {
+            unsubscribeInner(path, Optional.empty());
+        } else {
+            Path parent = path.getParent();
+            unsubscribeInner(parent, Optional.of(path));
+        }
+    }
+
+    /**
+     * Contains inner logic for unsubscription.
+     * Removes {@code childToUnsubscribe} from {@code trackedPaths} if it
+     * was not empty. Processes the event of deletion of the given path.
+     *
+     * @param dir                directory to unsubscribe from.
+     * @param childToUnsubscribe concrete file to unsubscribe from in this directory.
+     *                           If empty, the full directory will be unsubscribed.
+     */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private void unsubscribeInner(Path dir, Optional<Path> childToUnsubscribe) {
+        if (!trackedPaths.containsKey(dir)) {
+            // nothing to do, wasn't subscribed
+            return;
+        }
+        Lock lock = getLockFor(dir);
+        lock.lock();
+        try {
+            if (childToUnsubscribe.isPresent()) {
+                Path child = childToUnsubscribe.get();
+                Set<Path> children = trackedPaths.get(dir);
+                boolean wasTracked = false;
+                if (children != null) {
+                    wasTracked = children.remove(child);
+                }
+                if (!wasTracked) {
+                    // nothing to do
+                    return;
+                }
+                if (children.isEmpty()) {
+                    trackedPaths.remove(dir);
+                }
+            }
+
+            onEvent(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, childToUnsubscribe.orElse(dir)));
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void checkPathExists(Path path) throws FileNotFoundException {
+        if (!Files.exists(path)) {
+            throw new FileNotFoundException(
+                    String.format("Path '%s' doesn't exist", FileUtil.getCanonicalPath(path))
+            );
         }
     }
 
@@ -262,9 +317,10 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                     continue;
                 }
 
+                boolean needToHandleCreate = ev.kind() == ENTRY_CREATE &&
+                        dirsResponsibleForNewFiles.contains(dir);
                 Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
-                if (dirsResponsibleForEveryChild.contains(dir) ||
-                        pathsTrackedByThisDir.contains(changedPath)) {
+                if (needToHandleCreate || pathsTrackedByThisDir.contains(changedPath)) {
 
                     FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedPath);
                     onEvent(fsEvent);
