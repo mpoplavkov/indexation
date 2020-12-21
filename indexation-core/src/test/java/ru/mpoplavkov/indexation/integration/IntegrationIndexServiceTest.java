@@ -67,7 +67,7 @@ public class IntegrationIndexServiceTest {
     }
 
     @Test
-    public void shouldThrowAnExceptionForMissedFile() {
+    public void shouldThrowAnExceptionForAddingAMissedFile() {
         Path file = new File("missed.txt").toPath();
         assertThrows(FileNotFoundException.class, () -> service.addToIndex(file));
     }
@@ -98,7 +98,7 @@ public class IntegrationIndexServiceTest {
     }
 
     @Test
-    public void shouldCorrectlySearchFromSevrealIndexedDirectories() throws IOException {
+    public void shouldCorrectlySearchFromSeveralIndexedDirectories() throws IOException {
         service.addToIndex(subDir);
         service.addToIndex(anotherSubDir);
 
@@ -135,7 +135,6 @@ public class IntegrationIndexServiceTest {
                 () -> assertEquals(createSet(newFile), service.search(wordQuery(word1))),
                 () -> assertEquals(createSet(newFile), service.search(wordQuery(word2)))
         );
-
     }
 
     @Test
@@ -336,6 +335,200 @@ public class IntegrationIndexServiceTest {
         waitUntilServiceReactsToChanges(() -> service.search(wordQuery(word1)).isEmpty());
 
         assertEquals(createSet(file1, file2), service.search(wordQuery(word2)));
+    }
+
+    @Test
+    public void shouldRemoveFileFromTheIndex() throws IOException {
+        service.addToIndex(dirFile1);
+
+        service.removeFromIndex(dirFile1);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(), service.search(wordQuery(word1))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word3)))
+        );
+    }
+
+    @Test
+    public void shouldThrowAnExceptionForRemovingAMissedFile() {
+        Path file = new File("missed.txt").toPath();
+        assertThrows(FileNotFoundException.class, () -> service.removeFromIndex(file));
+    }
+
+    @Test
+    public void shouldRemoveSeveralFilesFromTheIndex() throws IOException {
+        service.addToIndex(subDirFile1);
+        service.addToIndex(subDirFile2);
+
+        service.removeFromIndex(subDirFile1);
+        service.removeFromIndex(subDirFile2);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word4))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word5)))
+        );
+    }
+
+    @Test
+    public void shouldRemoveDirectoryFromTheIndex() throws IOException {
+        service.addToIndex(subDir);
+
+        service.removeFromIndex(subDir);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word4))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word5)))
+        );
+    }
+
+    @Test
+    public void shouldRemoveSeveralDirectoriesFromTheIndex() throws IOException {
+        service.addToIndex(subDir);
+        service.addToIndex(anotherSubDir);
+
+        service.removeFromIndex(subDir);
+        service.removeFromIndex(anotherSubDir);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word4))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word5)))
+        );
+    }
+
+    @Test
+    public void shouldRemoveMultilevelDirectoryFromTheIndex() throws IOException {
+        service.addToIndex(dir);
+
+        service.removeFromIndex(dir);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(), service.search(wordQuery(word1))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word4))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word5)))
+        );
+    }
+
+    @Test
+    public void shouldNotReactToChangesInARemovedFile(@TempDir Path tempDir) throws IOException {
+        Path newFile = Files.createFile(tempDir.resolve("file.txt"));
+        Files.write(newFile, "word1 word2".getBytes());
+        service.addToIndex(tempDir);
+
+        service.removeFromIndex(newFile);
+        Files.write(newFile, "word3 word4".getBytes());
+
+        assertThrows(NoServiceReactionException.class,
+                () -> waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word3)).isEmpty()));
+    }
+
+    @Test
+    public void shouldNotReactToChangesInAFileFromARemovedDirectory(@TempDir Path tempDir) throws IOException {
+        Path newFile = Files.createFile(tempDir.resolve("file.txt"));
+        Files.write(newFile, "word1 word2".getBytes());
+
+        service.addToIndex(tempDir);
+
+        service.removeFromIndex(tempDir);
+        Files.write(newFile, "word3 word4".getBytes());
+
+        assertThrows(NoServiceReactionException.class,
+                () -> waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word3)).isEmpty()));
+    }
+
+    @Test
+    public void shouldNotReactToChangesInAFileFromARemovedMultilevelDirectory(@TempDir Path tempDir) throws IOException {
+        Path multilevelDir = Files.createDirectories(tempDir.resolve("a").resolve("b").resolve("c"));
+        Path newFile = Files.createFile(multilevelDir.resolve("file.txt"));
+        Files.write(newFile, "word1 word2".getBytes());
+
+        service.addToIndex(tempDir);
+
+        service.removeFromIndex(tempDir);
+        Files.write(newFile, "word3 word4".getBytes());
+
+        assertThrows(NoServiceReactionException.class,
+                () -> waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word3)).isEmpty()));
+
+    }
+
+    @Test
+    public void shouldIndexRemovedFileThatWasRecreated(@TempDir Path tempDir) throws IOException {
+        Path newFile = Files.createFile(tempDir.resolve("file.txt"));
+        Files.write(newFile, "word1 word2".getBytes());
+        service.addToIndex(tempDir);
+
+        service.removeFromIndex(newFile);
+
+        Files.delete(newFile);
+        Files.createFile(newFile);
+        Files.write(newFile, "word3 word4".getBytes());
+
+        waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word3)).isEmpty());
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(newFile), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(newFile), service.search(wordQuery(word4)))
+        );
+    }
+
+    @Test
+    public void shouldIndexChangedFileIfItsSiblingWasRemoved(@TempDir Path tempDir) throws IOException {
+        Path sibling1 = Files.createFile(tempDir.resolve("sibling1.txt"));
+        Path sibling2 = Files.createFile(tempDir.resolve("sibling2.txt"));
+        Files.write(sibling1, "word1 word2".getBytes());
+        Files.write(sibling2, "word2 word3".getBytes());
+        service.addToIndex(tempDir);
+
+        service.removeFromIndex(sibling1);
+
+        Files.write(sibling2, "word4 word5".getBytes());
+
+        waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word4)).isEmpty());
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(sibling2), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(sibling2), service.search(wordQuery(word4)))
+        );
+    }
+
+    @Test
+    public void shouldAddAFileToTheIndexAfterRemovingIt() throws IOException {
+        service.addToIndex(dirFile1);
+        service.removeFromIndex(dirFile1);
+        service.addToIndex(dirFile1);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(dirFile1), service.search(wordQuery(word1))),
+                () -> assertEquals(createSet(dirFile1), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(dirFile1), service.search(wordQuery(word3)))
+        );
+    }
+
+    @Test
+    public void shouldReactToChangesInAFileAddedToTheIndexAfterRemovingIt(@TempDir Path tempDir) throws IOException {
+        Path newFile = Files.createFile(tempDir.resolve("file.txt"));
+        Files.write(newFile, "word1 word2".getBytes());
+        service.addToIndex(tempDir);
+
+        service.removeFromIndex(newFile);
+        service.addToIndex(newFile);
+        Files.write(newFile, "word3 word4".getBytes());
+
+        waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word3)).isEmpty());
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(newFile), service.search(wordQuery(word3))),
+                () -> assertEquals(createSet(newFile), service.search(wordQuery(word4)))
+        );
     }
 
     private Query wordQuery(String word) {
