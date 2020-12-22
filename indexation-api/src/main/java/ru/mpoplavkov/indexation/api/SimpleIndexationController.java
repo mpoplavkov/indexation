@@ -48,4 +48,10 @@ public class SimpleIndexationController {
         File file = new File(path);
         fileSystemIndexService.addToIndex(file.toPath());
     }
+
+    @PostMapping("/unsubscribe")
+    public void unsubscribe(@RequestParam(value = "path") String path) throws IOException {
+        File file = new File(path);
+        fileSystemIndexService.removeFromIndex(file.toPath());
+    }
 }
