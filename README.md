@@ -50,6 +50,7 @@ The current client provides an HTTP API:
 
 * implement TODOs
 * improve tests quality using different junit features
+* add tests on concurrency
 
 ## Possible features
 
