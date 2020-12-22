@@ -174,7 +174,6 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private void unsubscribeInner(Path dir, Optional<Path> childToUnsubscribe) {
-        // TODO: remove a watch key
         Set<Path> children = trackedPaths.get(dir);
         if (children == null) {
             // nothing to do, wasn't subscribed
