@@ -351,6 +351,21 @@ public class IntegrationIndexServiceTest {
     }
 
     @Test
+    public void shouldRemoveFileFromTheIndexByRemovingDifferentPathWithTheSameCanonicalName() throws IOException {
+        Path sameCanonicalPath = dirFile1.resolve(".");
+        Assumptions.assumeFalse(dirFile1.equals(sameCanonicalPath));
+        service.addToIndex(dirFile1);
+
+        service.removeFromIndex(sameCanonicalPath);
+
+        Assertions.assertAll(
+                () -> assertEquals(createSet(), service.search(wordQuery(word1))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word2))),
+                () -> assertEquals(createSet(), service.search(wordQuery(word3)))
+        );
+    }
+
+    @Test
     public void shouldThrowAnExceptionForRemovingAMissedFile() {
         Path file = new File("missed.txt").toPath();
         assertThrows(FileNotFoundException.class, () -> service.removeFromIndex(file));
