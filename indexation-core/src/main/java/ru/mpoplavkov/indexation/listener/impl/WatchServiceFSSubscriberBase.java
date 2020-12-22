@@ -89,21 +89,24 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      */
     @Override
     public void subscribe(Path path) throws IOException {
-        if (!Files.exists(path)) {
+        Path normalizedPath = path.normalize();
+        if (!Files.exists(normalizedPath)) {
             throw new FileNotFoundException(
-                    String.format("File '%s' doesn't exist", FileUtil.getCanonicalPath(path))
+                    String.format("File '%s' doesn't exist", FileUtil.getCanonicalPath(normalizedPath))
             );
         }
-        if (!pathFilter.filter(path)) {
-            log.info(() -> String.format("Skipping path '%s' due to filtration logic", FileUtil.getCanonicalPath(path)));
+        if (!pathFilter.filter(normalizedPath)) {
+            log.info(() ->
+                    String.format("Skipping path '%s' due to filtration logic", FileUtil.getCanonicalPath(normalizedPath))
+            );
             return;
         }
 
-        if (Files.isDirectory(path)) {
-            subscribeInner(path, Optional.empty());
+        if (Files.isDirectory(normalizedPath)) {
+            subscribeInner(normalizedPath, Optional.empty());
         } else {
-            Path parent = path.getParent();
-            subscribeInner(parent, Optional.of(path));
+            Path parent = normalizedPath.getParent();
+            subscribeInner(parent, Optional.of(normalizedPath));
         }
     }
 
