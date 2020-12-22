@@ -20,8 +20,17 @@ public interface FileSystemSubscriber extends Closeable {
      */
     void subscribe(Path path) throws IOException;
 
-    // TODO: implement
-    // void unsubscribe(Path path);
+    /**
+     * Deletes the path and its contents from the index and stops to
+     * listen for its changes. Does nothing if the path was not subscribed to.
+     * This path will be subscribed again in case of its recreation in the
+     * file system and if one of its parent directories is subscribed to
+     * changes.
+     *
+     * @param path the path to unsubscribe from.
+     * @throws IOException if an I/O error occurs.
+     */
+    void unsubscribe(Path path) throws IOException;
 
     /**
      * Starts threads for listening the file system for events

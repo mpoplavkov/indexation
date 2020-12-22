@@ -38,9 +38,22 @@ class SimpleIndexationControllerTest {
     }
 
     @Test
-    void shouldRespondWithBadRequestOnRegisteringANonExistentPath() throws Exception {
+    void shouldRespondWithBadRequestOnSubscribeToANonExistentPath() throws Exception {
         Path path = new File("non existent").toPath();
         mockMvc.perform(post(String.format("/subscribe?path=%s", path.toAbsolutePath())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRespondOnUnsubscribe(@TempDir Path dir) throws Exception {
+        mockMvc.perform(post(String.format("/unsubscribe?path=%s", dir.toAbsolutePath())))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldRespondWithBadRequestOnUnsubscribeFromANonExistentPath() throws Exception {
+        Path path = new File("non existent").toPath();
+        mockMvc.perform(post(String.format("/unsubscribe?path=%s", path.toAbsolutePath())))
                 .andExpect(status().isBadRequest());
     }
 

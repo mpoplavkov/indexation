@@ -34,6 +34,8 @@ The current client provides an HTTP API:
 
 * **POST /subscribe** - subscribes to the given path (a directory or a file). Query parameters:
     * *path* - the path to subscribe.
+* **POST /unsubscribe** - unsubscribes from the given path (a directory or a file). Query parameters:
+    * *path* - the path to unsubscribe from.
 * **GET /search** - returns a set of found files. Query parameters:
     * *word* - the word to search in subscribed files.
   
@@ -42,11 +44,13 @@ The current client provides an HTTP API:
 1. ```curl --request POST 'localhost:8080/subscribe?path=.'``` - subscribe to events in the current directory and index all its files.
 2. ```curl --request GET 'localhost:8080/search?word=public'``` - retrieve a set of files containing the word *public*. Result for ```.``` directory:
     * ```["/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/config/AppConfiguration.java","/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/api/SimpleIndexationController.java","/Users/mpoplavkov/IdeaProjects/indexation/indexation-api/src/main/java/ru/mpoplavkov/indexation/SimpleIndexationApi.java"]```
+3. ```curl --request POST 'localhost:8080/unsubscribe?path=.'``` - unsubscribe from events in the directory and remove all its files from the index.
 
 ## Things to improve
 
 * implement TODOs
 * improve tests quality using different junit features
+* add tests on concurrency
 
 ## Possible features
 

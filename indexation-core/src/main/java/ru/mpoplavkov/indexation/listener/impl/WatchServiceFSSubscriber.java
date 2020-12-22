@@ -66,6 +66,12 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
         Path dir = event.getEntry();
         switch (event.getKind()) {
             case ENTRY_CREATE:
+                Path parentDir = dir.getParent();
+                if (parentDir != null) {
+                    trackedPaths
+                            .computeIfAbsent(parentDir, p -> ConcurrentHashMap.newKeySet())
+                            .add(dir);
+                }
                 List<Path> children = Files.list(dir).collect(Collectors.toList());
                 for (Path child : children) {
                     if (Files.isDirectory(child)) {
@@ -82,7 +88,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                                 .filter(p -> !isOrWasADirectory(p))
                                 .collect(Collectors.toSet());
                 trackedPaths.remove(dir);
-                dirsResponsibleForEveryChild.remove(dir);
+                dirsResponsibleForNewFiles.remove(dir);
                 for (Path file : directoryFiles) {
                     onEventInner(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, file));
                 }
