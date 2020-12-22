@@ -157,13 +157,13 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
 
     @Override
     public void unsubscribe(Path path) throws IOException {
-        Path normalizedPath = path.normalize();
-        checkPathExists(normalizedPath);
-        if (Files.isDirectory(normalizedPath)) {
-            unsubscribeInner(normalizedPath, Optional.empty());
+        Path canonicalPath = FileUtil.toCanonicalPath(path);
+        checkPathExists(canonicalPath);
+        if (Files.isDirectory(canonicalPath)) {
+            unsubscribeInner(canonicalPath, Optional.empty());
         } else {
-            Path parent = normalizedPath.getParent();
-            unsubscribeInner(parent, Optional.of(normalizedPath));
+            Path parent = canonicalPath.getParent();
+            unsubscribeInner(parent, Optional.of(canonicalPath));
         }
     }
 
