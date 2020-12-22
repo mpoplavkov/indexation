@@ -40,7 +40,12 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     /**
      * Mapping from watch keys to paths tracked by those keys.
      */
-    private final Map<WatchKey, Path> watchKeysToDir = new ConcurrentHashMap<>();
+    private final Map<WatchKey, Path> watchKeysToDirs = new ConcurrentHashMap<>();
+
+    /**
+     * Mapping from paths to their watch keys.
+     */
+    private final Map<Path, WatchKey> dirsToWatchKeys = new ConcurrentHashMap<>();
 
     /**
      * Map from tracked paths to their registered children.
@@ -135,7 +140,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             }
 
             WatchKey watchKey = registerDirToTheWatcher(dir);
-            watchKeysToDir.put(watchKey, dir);
+            watchKeysToDirs.put(watchKey, dir);
+            dirsToWatchKeys.put(dir, watchKey);
             // TODO: get rid of synchronization chain?
             //  There could be no dead locks, cause every next lock associates
             //  with the child of the locked directory, i.e. locks are ordered.
@@ -167,7 +173,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      *                           If empty, the full directory will be unsubscribed.
      */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private void unsubscribeInner(Path dir, Optional<Path> childToUnsubscribe) throws IOException {
+    private void unsubscribeInner(Path dir, Optional<Path> childToUnsubscribe) {
         // TODO: remove a watch key
         Set<Path> children = trackedPaths.get(dir);
         if (children == null) {
@@ -186,8 +192,12 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                 }
                 if (children.isEmpty()) {
                     trackedPaths.remove(dir);
+                    if (!dirsResponsibleForNewFiles.contains(dir)) {
+                        cancelWatchKeyFor(dir);
+                    }
                 }
             } else {
+                cancelWatchKeyFor(dir);
                 // unsubscribe all child directories
                 for (Path path : children) {
                     if (Files.isDirectory(path)) {
@@ -200,6 +210,14 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         } finally {
             lock.unlock();
         }
+    }
+
+    private void cancelWatchKeyFor(Path dir) {
+        WatchKey watchKey = dirsToWatchKeys.get(dir);
+        if (watchKey == null) {
+            return;
+        }
+        watchKey.cancel();
     }
 
     private void checkPathExists(Path path) throws FileNotFoundException {
@@ -292,7 +310,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
         } catch (InterruptedException x) {
             return;
         }
-        Path dir = watchKeysToDir.get(key);
+        Path dir = watchKeysToDirs.get(key);
         if (dir == null) {
             // wait until watchKeysToDir will be updated
             key.reset();
@@ -337,7 +355,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                 // If the key is no longer valid, the directory is inaccessible so stop
                 // listening to its changes.
                 if (!valid) {
-                    watchKeysToDir.remove(key);
+                    watchKeysToDirs.remove(key);
+                    dirsToWatchKeys.remove(dir);
                     log.info(() -> String.format("Stop tracking directory '%s'", FileUtil.getCanonicalPath(dir)));
                     FileSystemEvent fsEvent = new FileSystemEvent(FileSystemEvent.Kind.ENTRY_DELETE, dir);
                     onEvent(fsEvent);

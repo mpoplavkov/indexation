@@ -461,7 +461,7 @@ public class IntegrationIndexServiceTest {
     }
 
     @Test
-    public void shouldIndexRemovedFileThatWasRecreated(@TempDir Path tempDir) throws IOException {
+    public void shouldIndexRemovedFileThatWasRecreated(@TempDir Path tempDir) throws IOException, InterruptedException {
         Path newFile = Files.createFile(tempDir.resolve("file.txt"));
         Files.write(newFile, "word1 word2".getBytes());
         service.addToIndex(tempDir);
@@ -469,6 +469,9 @@ public class IntegrationIndexServiceTest {
         service.removeFromIndex(newFile);
 
         Files.delete(newFile);
+        // To give time to the watch service to trigger on the file deletion.
+        // Otherwise, these operations could be treated as the file modification.
+        Thread.sleep(30000);
         Files.createFile(newFile);
         Files.write(newFile, "word3 word4".getBytes());
 
@@ -495,8 +498,8 @@ public class IntegrationIndexServiceTest {
         waitUntilServiceReactsToChanges(() -> !service.search(wordQuery(word4)).isEmpty());
 
         Assertions.assertAll(
-                () -> assertEquals(createSet(sibling2), service.search(wordQuery(word3))),
-                () -> assertEquals(createSet(sibling2), service.search(wordQuery(word4)))
+                () -> assertEquals(createSet(sibling2), service.search(wordQuery(word4))),
+                () -> assertEquals(createSet(sibling2), service.search(wordQuery(word5)))
         );
     }
 
