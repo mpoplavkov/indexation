@@ -189,11 +189,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                     // nothing to do
                     return;
                 }
-                if (children.isEmpty()) {
-                    trackedPaths.remove(dir);
-                    if (!dirsResponsibleForNewFiles.contains(dir)) {
-                        cancelWatchKeyFor(dir);
-                    }
+                if (children.isEmpty() && !dirsResponsibleForNewFiles.contains(dir)) {
+                    cancelWatchKeyFor(dir);
                 }
             } else {
                 cancelWatchKeyFor(dir);
