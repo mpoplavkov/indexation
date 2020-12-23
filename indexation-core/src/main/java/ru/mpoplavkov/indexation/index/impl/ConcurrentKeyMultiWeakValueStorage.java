@@ -47,7 +47,7 @@ class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K
     }
 
     /**
-     * Creates cache with, which could be used as a {@link Map},
+     * Creates cache, which could be used as a {@link Map},
      * with keys, wrapped in {@link java.lang.ref.WeakReference}.
      * <p>The resulting cache will use identity ({@code ==}) comparison
      * to determine equality of keys.
