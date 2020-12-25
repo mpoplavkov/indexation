@@ -89,6 +89,7 @@ public class FileSystemIndexServiceImpl implements FileSystemIndexService {
 
     @Override
     public void close() throws IOException {
+        index.close();
         subscriber.close();
     }
 
