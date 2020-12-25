@@ -26,7 +26,7 @@ import java.util.logging.Level;
  * @param <V> type of the value.
  */
 @Log
-class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V>, Closeable {
+class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
     private final Map<K, Cache<V, K>> storage = new ConcurrentHashMap<>();
 

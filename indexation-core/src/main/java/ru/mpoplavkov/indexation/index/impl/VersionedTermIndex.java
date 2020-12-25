@@ -9,6 +9,7 @@ import ru.mpoplavkov.indexation.model.query.ExactTerm;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.model.term.Term;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -162,6 +163,11 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
         } else {
             return Stream.of(actualValue);
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        kmvStorage.close();
     }
 
     // TODO: discuss if this idea is clear. Reimplement, if not

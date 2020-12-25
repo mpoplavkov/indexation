@@ -3,6 +3,7 @@ package ru.mpoplavkov.indexation.index;
 import ru.mpoplavkov.indexation.model.query.Query;
 import ru.mpoplavkov.indexation.model.term.Term;
 
+import java.io.Closeable;
 import java.util.Set;
 
 /**
@@ -10,7 +11,7 @@ import java.util.Set;
  *
  * @param <V> type of value to be stored in the index.
  */
-public interface TermIndex<V> {
+public interface TermIndex<V> extends Closeable {
 
     /**
      * Appends all given terms, associated with the given value

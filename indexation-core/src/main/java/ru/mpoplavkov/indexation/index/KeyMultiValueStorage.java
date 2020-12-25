@@ -1,5 +1,6 @@
 package ru.mpoplavkov.indexation.index;
 
+import java.io.Closeable;
 import java.util.Set;
 
 /**
@@ -10,7 +11,7 @@ import java.util.Set;
  * @param <K> type of the key.
  * @param <V> type of the value.
  */
-public interface KeyMultiValueStorage<K, V> {
+public interface KeyMultiValueStorage<K, V> extends Closeable {
 
     /**
      * Adds a value to the set, associated with the given key.
