@@ -1,6 +1,7 @@
 package ru.mpoplavkov.indexation.index.impl;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 import ru.mpoplavkov.indexation.index.TermIndex;
@@ -15,11 +16,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Term index based on the storage of values along with their versions.
- * Each update operation changes the value's version. The version
- * correspondence is checked when values are retrieved.
- * <p>For each update, the value is fully re-indexed. Values, along with
- * their versions, are stored wrapped in the {@link java.lang.ref.WeakReference}.
+ * Term index based on the storage of values wrapped into
+ * {@link VersionedTermIndex.WrappedValue}. Each update operation forces
+ * the creation of a new {@link VersionedTermIndex.WrappedValue} and full
+ * reindex of all terms along with the newly created object. The index
+ * remembers the last object, associated with a concrete value and its
+ * correspondence is checked when retrieving data from the storage. Check
+ * is performed via reference equality (==).
+ * Each {@link VersionedTermIndex.WrappedValue} instance serves as a random
+ * version for a specific value, ensuring that no two existing versions are
+ * the same.
+ *
+ * <p>Values are stored wrapped in the {@link java.lang.ref.WeakReference}.
  * This allows to not cleanup the storage manually.
  *
  * @param <V> type of value to be stored in the index.
@@ -28,27 +36,23 @@ import java.util.stream.Stream;
 public class VersionedTermIndex<V> implements TermIndex<V> {
 
     /**
-     * The underlying storage. Stores values along with their versions.
+     * The underlying storage.
      */
-    private final KeyMultiValueStorage<Term, VersionedValue<V>> kmvStorage =
+    private final KeyMultiValueStorage<Term, WrappedValue<V>> kmvStorage =
             new ConcurrentKeyMultiWeakValueStorage<>();
 
     /**
      * Association between values and their actual versions in the storage.
      * During the search, only values with actual versions are retrieved
      * from the storage.
-     * <br>
-     * If the value's version is negative, it means that the value has been
-     * deleted from the index (but possibly not from the storage).
      */
-    // TODO: deal with the version overflow
-    private final Map<V, VersionedValue<V>> valueVersions = new ConcurrentHashMap<>();
+    private final Map<V, WrappedValue<V>> actualValues = new ConcurrentHashMap<>();
 
     /**
      * Atomically associates given terms with the value in the storage.
-     * The indexed value will only become visible only after a new version
-     * of that value is inserted into the
-     * {@link VersionedTermIndex#valueVersions}, which is the last
+     * The indexed value will only become visible only after a new instance
+     * of the {@link VersionedTermIndex.WrappedValue} is inserted into the
+     * {@link VersionedTermIndex#actualValues}, which is the last
      * operation in this method.
      * <br>
      * Only one parallel update for the concrete value is allowed. If two
@@ -60,32 +64,26 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      */
     @Override
     public void index(V value, Iterable<Term> terms) {
-        VersionedValue<V> oldVersionedValue = valueVersions.get(value);
-        VersionedValue<V> newVersionedValue;
-        if (oldVersionedValue == null) {
-            newVersionedValue = VersionedValue.withInitialVersion(value);
-        } else {
-            newVersionedValue = oldVersionedValue.withIncrementedVersion();
-        }
+        WrappedValue<V> newWrappedValue = new WrappedValue<>(value);
 
         for (Term term : terms) {
-            kmvStorage.put(term, newVersionedValue);
+            kmvStorage.put(term, newWrappedValue);
         }
-        valueVersions.put(value, newVersionedValue);
-        log.config(() -> String.format("Indexed '%s'", newVersionedValue));
+        actualValues.put(value, newWrappedValue);
+        log.config(() -> String.format("Indexed '%s'", value));
     }
 
     /**
      * Atomically deletes all occurrences of the given value from the index.
-     * Just negates the version associated with the value in index, so
-     * that all the further lookups will not retrieve that value because
+     * Just removes the given value from {@link VersionedTermIndex#actualValues},
+     * so that all the further lookups will not retrieve that value because
      * of the version mismatch.
      *
      * @param value value to delete from the index.
      */
     @Override
     public void delete(V value) {
-        valueVersions.computeIfPresent(value, (v, versioned) -> versioned.withNegativeVersion());
+        actualValues.remove(value);
         log.config(() -> String.format("Deleted '%s'", value));
     }
 
@@ -95,22 +93,22 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * filtering is applied to the result of the storage query.
      * <br><br>
      * It would be wrong to filter result of the storage query using
-     * {@link VersionedTermIndex#valueVersions}, because between the
+     * {@link VersionedTermIndex#actualValues}, because between the
      * retrieving the result from the storage and obtaining versions from
-     * {@link VersionedTermIndex#valueVersions}, this map potentially
+     * {@link VersionedTermIndex#actualValues}, this map potentially
      * could be changed.
      * In this case, the following order of events is possible:
      * <ol>
-     *     <li>storage returns <i>value1</i> along with the <i>version1</i>
+     *     <li>storage returns <i>wrappedValue1</i> associated with the <i>value1</i>
      *     as a result of the <i>query</i>;</li>
      *     <li><i>value1</i> is reindexed, so that it still falls under the
      *     conditions of the <i>query</i>;</li>
-     *     <li>{@link VersionedTermIndex#valueVersions} for the given
-     *     <i>value1</i> contains already the next version - <i>version2</i>;
+     *     <li>{@link VersionedTermIndex#actualValues} for the given
+     *     <i>value1</i> contains already the next version - <i>wrappedValue2</i>;
      *     </li>
      *     <li>since the result from the first step contains only non actual
-     *     version of the <i>value1</i> (<i>version1</i>, when version
-     *     <i>version2</i> is actual), <i>value1</i> would not be returned as
+     *     version of the <i>value1</i> (<i>wrappedValue1</i>, when
+     *     <i>wrappedValue2</i> is actual), <i>value1</i> would not be returned as
      *     a result of the select method, even though both versions of this
      *     value satisfy the <i>query</i>.</li>
      * </ol>
@@ -120,7 +118,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * Current implementation executes two identical requests to the storage.
      * The first request is for identifying a set of values, that match to
      * the given query regardless of their version. Versions of these values are
-     * then taken from the {@link VersionedTermIndex#valueVersions}. That
+     * then taken from the {@link VersionedTermIndex#actualValues}. That
      * is how the snapshot of versions is made. This snapshot is used then to
      * filter the result of the second request.
      *
@@ -133,22 +131,22 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
             ExactTerm exactTerm = (ExactTerm) query;
             Term termToSearch = exactTerm.getTerm();
 
-            Set<VersionedValue<V>> firstQueryResult = kmvStorage.get(termToSearch);
+            Set<WrappedValue<V>> firstQueryResult = kmvStorage.get(termToSearch);
 
-            Set<VersionedValue<V>> versionsSnapshot =
+            Set<WrappedValue<V>> actualValuesSnapshot =
                     firstQueryResult
                             .stream()
-                            .map(VersionedValue::getValue)
+                            .map(WrappedValue::getValue)
                             .distinct()
-                            .flatMap(this::withActualVersion)
+                            .flatMap(this::withActualValue)
                             .collect(Collectors.toSet());
 
-            Set<VersionedValue<V>> secondQueryResult = kmvStorage.get(termToSearch);
+            Set<WrappedValue<V>> secondQueryResult = kmvStorage.get(termToSearch);
 
             return secondQueryResult
                     .stream()
-                    .filter(versionsSnapshot::contains)
-                    .map(VersionedValue::getValue)
+                    .filter(actualValuesSnapshot::contains)
+                    .map(WrappedValue::getValue)
                     .collect(Collectors.toSet());
         }
 
@@ -157,38 +155,37 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
         );
     }
 
-    private Stream<VersionedValue<V>> withActualVersion(V value) {
-        VersionedValue<V> actualVersionedValue = valueVersions.get(value);
-        if (actualVersionedValue == null) {
+    private Stream<WrappedValue<V>> withActualValue(V value) {
+        WrappedValue<V> actualValue = actualValues.get(value);
+        if (actualValue == null) {
             return Stream.empty();
         } else {
-            return Stream.of(actualVersionedValue);
+            return Stream.of(actualValue);
         }
     }
 
-    @Data
-    private static class VersionedValue<V> {
-        private static final long INITIAL_VERSION = 1;
-
+    // TODO: discuss if this idea is clear. Reimplement, if not
+    /**
+     * A wrapper for the value. The main purpose of this class is to create
+     * a unique object each time when the value is reindexed, so that this
+     * value will be associated with this object.
+     *
+     * @param <V> type of the stored value.
+     */
+    @RequiredArgsConstructor
+    @Getter
+    private static class WrappedValue<V> {
         private final V value;
-        private final long version;
 
-        static <T> VersionedValue<T> withInitialVersion(T value) {
-            return new VersionedValue<>(value, INITIAL_VERSION);
-        }
-
-        VersionedValue<V> withIncrementedVersion() {
-            return new VersionedValue<>(value, incVersion(version));
-        }
-
-        VersionedValue<V> withNegativeVersion() {
-            return new VersionedValue<>(value, -version);
-        }
-
-        private long incVersion(long oldVersion) {
-            // there could be a negative version if the value was deleted
-            long absOldVersion = Math.abs(oldVersion);
-            return ++absOldVersion;
+        /**
+         * Reference equality check. Since each new version of the value is
+         * associated with a new instance of a {@link WrappedValue}, the equality
+         * check of {@link WrappedValue} must be performed via comparison of the
+         * references.
+         */
+        @Override
+        public boolean equals(Object another) {
+            return this == another;
         }
     }
 }
