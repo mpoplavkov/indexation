@@ -26,7 +26,7 @@ public class VersionedTermIndexConcurrencyTest {
     @State
     public static class ConcurrentIndexOfDifferentValuesTest {
 
-        TermIndex<String> index = createIndex();
+        TermIndex<String> index = createIndex(1);
 
         @Actor
         public void actor1() {
@@ -54,7 +54,7 @@ public class VersionedTermIndexConcurrencyTest {
     @State
     public static class ConcurrentIndexOfTheSameValueTest {
 
-        TermIndex<String> index = createIndex();
+        TermIndex<String> index = createIndex(1);
 
         @Actor
         public void actor1() {
@@ -155,7 +155,11 @@ public class VersionedTermIndexConcurrencyTest {
         }
     }
 
+    private static <T> TermIndex<T> createIndex(int initialCapacity) {
+        return new VersionedTermIndex<>(new ExecutorsUtil.FakeScheduledExecutorService(), initialCapacity);
+    }
+
     private static <T> TermIndex<T> createIndex() {
-        return new VersionedTermIndex<>(new ExecutorsUtil.FakeScheduledExecutorService());
+        return createIndex(16);
     }
 }

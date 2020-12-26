@@ -47,14 +47,17 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * During the search, only values with actual versions are retrieved
      * from the storage.
      */
-    private final Map<V, WrappedValue<V>> actualValues = new ConcurrentHashMap<>();
+    private final Map<V, WrappedValue<V>> actualValues;
 
-    public VersionedTermIndex(ScheduledExecutorService storageCleanupExecutorService) {
+    public VersionedTermIndex(ScheduledExecutorService storageCleanupExecutorService,
+                              int initialCapacity) {
         kmvStorage = new ConcurrentKeyMultiWeakValueStorage<>(storageCleanupExecutorService);
+        actualValues = new ConcurrentHashMap<>(initialCapacity);
     }
 
     public VersionedTermIndex() {
         kmvStorage = new ConcurrentKeyMultiWeakValueStorage<>();
+        actualValues = new ConcurrentHashMap<>();
     }
 
     /**
