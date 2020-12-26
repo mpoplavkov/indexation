@@ -2,10 +2,12 @@ package ru.mpoplavkov.indexation.index.impl;
 
 import org.openjdk.jcstress.annotations.*;
 import org.openjdk.jcstress.infra.results.IIII_Result;
+import org.openjdk.jcstress.infra.results.III_Result;
 import org.openjdk.jcstress.infra.results.I_Result;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 import ru.mpoplavkov.indexation.util.ExecutorsUtil;
 
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -68,5 +70,36 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
             r.r4 = set2.iterator().next();
         }
 
+    }
+
+    @JCStressTest
+    @Description("Two threads should successfully concurrently write values with the same key to the storage")
+    @Outcome(id = "2, 55, 66", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "2, 66, 55", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentWriteWithTheSameKeyTest {
+
+        KeyMultiValueStorage<String, Integer> storage =
+                new ConcurrentKeyMultiWeakValueStorage<>(scheduler, 1, TimeUnit.DAYS, 1);
+
+        @Actor
+        public void actor1() {
+            storage.put(KEY_1, VALUE_1);
+        }
+
+        @Actor
+        public void actor2() {
+            storage.put(KEY_1, VALUE_2);
+        }
+
+        @Arbiter
+        public void arbiter(III_Result r) {
+            Set<Integer> set1 = storage.get(KEY_1);
+            Iterator<Integer> iterator = set1.iterator();
+
+            r.r1 = set1.size();
+            r.r2 = iterator.next();
+            r.r3 = iterator.next();
+        }
     }
 }
