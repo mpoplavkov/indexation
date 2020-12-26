@@ -55,10 +55,6 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * of the {@link VersionedTermIndex.WrappedValue} is inserted into the
      * {@link VersionedTermIndex#actualValues}, which is the last
      * operation in this method.
-     * <br>
-     * Only one parallel update for the concrete value is allowed. If two
-     * or more threads will index the same value, then the behaviour is
-     * not determined.
      *
      * @param value given value.
      * @param terms given terms.
