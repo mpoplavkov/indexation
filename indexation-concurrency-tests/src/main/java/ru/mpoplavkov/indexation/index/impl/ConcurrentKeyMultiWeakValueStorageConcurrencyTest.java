@@ -25,7 +25,7 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
     @JCStressTest
     @Description("The thread should read its own write from the storage")
-    @Outcome(id = "55", expect = Expect.ACCEPTABLE, desc = "The only acceptable outcome.")
+    @Outcome(id = "55", expect = Expect.ACCEPTABLE)
     @State
     public static class ReadAfterWrite {
 
@@ -42,7 +42,7 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
     @JCStressTest
     @Description("Two threads should successfully concurrently write to the storage")
-    @Outcome(id = "1, 1, 55, 66", expect = Expect.ACCEPTABLE, desc = "The only acceptable outcome.")
+    @Outcome(id = "1, 1, 55, 66", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentWriteTest {
 

@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,8 +40,7 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
     /**
      * The underlying storage.
      */
-    private final KeyMultiValueStorage<Term, WrappedValue<V>> kmvStorage =
-            new ConcurrentKeyMultiWeakValueStorage<>();
+    private final KeyMultiValueStorage<Term, WrappedValue<V>> kmvStorage;
 
     /**
      * Association between values and their actual versions in the storage.
@@ -48,6 +48,14 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * from the storage.
      */
     private final Map<V, WrappedValue<V>> actualValues = new ConcurrentHashMap<>();
+
+    public VersionedTermIndex(ScheduledExecutorService storageCleanupExecutorService) {
+        kmvStorage = new ConcurrentKeyMultiWeakValueStorage<>(storageCleanupExecutorService);
+    }
+
+    public VersionedTermIndex() {
+        kmvStorage = new ConcurrentKeyMultiWeakValueStorage<>();
+    }
 
     /**
      * Atomically associates given terms with the value in the storage.

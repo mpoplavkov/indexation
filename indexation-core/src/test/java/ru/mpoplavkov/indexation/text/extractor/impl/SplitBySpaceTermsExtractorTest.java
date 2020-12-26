@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static ru.mpoplavkov.indexation.TestUtils.createSet;
+import static ru.mpoplavkov.indexation.util.CollectionsUtil.createSet;
 
 class SplitBySpaceTermsExtractorTest {
 

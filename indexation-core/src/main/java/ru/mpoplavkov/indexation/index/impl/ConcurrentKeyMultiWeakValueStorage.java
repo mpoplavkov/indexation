@@ -27,6 +27,9 @@ import java.util.logging.Level;
 @Log
 public class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
+    private final static int DEFAULT_CAPACITY = 16;
+    private final static int DEFAULT_CLEAN_UP_DELAY_SECONDS = 30;
+
     private final Map<K, Cache<V, K>> storage;
 
     /**
@@ -54,16 +57,20 @@ public class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueSt
         cleanupExecutorService.scheduleWithFixedDelay(this::cleanUpAllCaches, cleanUpDelay, cleanUpDelay, unit);
     }
 
+    public ConcurrentKeyMultiWeakValueStorage(ScheduledExecutorService cleanupExecutorService) {
+        this(cleanupExecutorService, DEFAULT_CLEAN_UP_DELAY_SECONDS, TimeUnit.SECONDS, DEFAULT_CAPACITY);
+    }
+
     public ConcurrentKeyMultiWeakValueStorage(long cleanUpDelay, TimeUnit unit, int initialCapacity) {
         this(Executors.newSingleThreadScheduledExecutor(), cleanUpDelay, unit, initialCapacity);
     }
 
     public ConcurrentKeyMultiWeakValueStorage(int initialCapacity) {
-        this(30, TimeUnit.SECONDS, initialCapacity);
+        this(DEFAULT_CLEAN_UP_DELAY_SECONDS, TimeUnit.SECONDS, initialCapacity);
     }
 
     public ConcurrentKeyMultiWeakValueStorage() {
-        this(16);
+        this(DEFAULT_CAPACITY);
     }
 
     @Override
