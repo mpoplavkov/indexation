@@ -4,6 +4,7 @@ import org.openjdk.jcstress.annotations.*;
 import org.openjdk.jcstress.infra.results.LL_Result;
 import org.openjdk.jcstress.infra.results.L_Result;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
+import ru.mpoplavkov.indexation.util.CollectionsUtil;
 import ru.mpoplavkov.indexation.util.ExecutorsUtil;
 
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,7 +20,7 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
     @JCStressTest
     @Description("The thread should read its own write from the storage")
-    @Outcome(id = "\\[value_1\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "value_1", expect = Expect.ACCEPTABLE)
     @State
     public static class ReadAfterWrite {
 
@@ -28,14 +29,14 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
         @Actor
         public void actor(L_Result r) {
             storage.put(KEY_1, VALUE_1);
-            r.r1 = storage.get(KEY_1);
+            r.r1 = CollectionsUtil.makeSortedString(storage.get(KEY_1));
         }
 
     }
 
     @JCStressTest
     @Description("Two threads should successfully concurrently write to the storage")
-    @Outcome(id = "\\[value_1\\], \\[value_2\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "value_1, value_2", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentWriteTest {
 
@@ -53,15 +54,15 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
         @Arbiter
         public void arbiter(LL_Result r) {
-            r.r1 = storage.get(KEY_1);
-            r.r2 = storage.get(KEY_2);
+            r.r1 = CollectionsUtil.makeSortedString(storage.get(KEY_1));
+            r.r2 = CollectionsUtil.makeSortedString(storage.get(KEY_2));
         }
 
     }
 
     @JCStressTest
     @Description("Two threads should successfully concurrently write values with the same key to the storage")
-    @Outcome(id = "\\[value_1, value_2\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "value_1;value_2", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentWriteWithTheSameKeyTest {
 
@@ -79,13 +80,13 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
         @Arbiter
         public void arbiter(L_Result r) {
-            r.r1 = storage.get(KEY_1);
+            r.r1 = CollectionsUtil.makeSortedString(storage.get(KEY_1), ";");
         }
     }
 
     @JCStressTest
     @Description("Two threads should successfully concurrently delete the same value from the storage")
-    @Outcome(id = "\\[\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentDeleteOfTheSameValueTest {
 
@@ -107,13 +108,13 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
         @Arbiter
         public void arbiter(L_Result r) {
-            r.r1 = storage.get(KEY_1);
+            r.r1 = CollectionsUtil.makeSortedString(storage.get(KEY_1));
         }
     }
 
     @JCStressTest
     @Description("Two threads should successfully concurrently delete different values from the storage")
-    @Outcome(id = "\\[\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentDeleteOfDifferentValuesTest {
 
@@ -136,7 +137,7 @@ public class ConcurrentKeyMultiWeakValueStorageConcurrencyTest {
 
         @Arbiter
         public void arbiter(L_Result r) {
-            r.r1 = storage.get(KEY_1);
+            r.r1 = CollectionsUtil.makeSortedString(storage.get(KEY_1));
         }
     }
 

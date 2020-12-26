@@ -22,7 +22,7 @@ public class VersionedTermIndexConcurrencyTest {
 
     @JCStressTest
     @Description("Two threads could concurrently index different values.")
-    @Outcome(id = "\\[value_1\\], \\[value_1, value_2\\], \\[value_2\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "value_1, value_1;value_2, value_2", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentIndexOfDifferentValuesTest {
 
@@ -40,17 +40,17 @@ public class VersionedTermIndexConcurrencyTest {
 
         @Arbiter
         public void arbiter(LLL_Result r) {
-            r.r1 = index.search(new ExactTerm(TERM_1));
-            r.r2 = index.search(new ExactTerm(TERM_2));
-            r.r3 = index.search(new ExactTerm(TERM_3));
+            r.r1 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_1)), ";");
+            r.r2 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_2)), ";");
+            r.r3 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_3)), ";");
         }
 
     }
 
     @JCStressTest
     @Description("Two threads could concurrently index the same value. Only one of the results should be visible")
-    @Outcome(id = "\\[value_1\\], \\[value_1\\], \\[\\]", expect = Expect.ACCEPTABLE, desc = "If the value indexed by the actor1 is visible")
-    @Outcome(id = "\\[\\], \\[value_1\\], \\[value_1\\]", expect = Expect.ACCEPTABLE, desc = "If the value indexed by the actor2 is visible")
+    @Outcome(id = "value_1, value_1, ", expect = Expect.ACCEPTABLE, desc = "If the value indexed by the actor1 is visible")
+    @Outcome(id = ", value_1, value_1", expect = Expect.ACCEPTABLE, desc = "If the value indexed by the actor2 is visible")
     @State
     public static class ConcurrentIndexOfTheSameValueTest {
 
@@ -68,16 +68,16 @@ public class VersionedTermIndexConcurrencyTest {
 
         @Arbiter
         public void arbiter(LLL_Result r) {
-            r.r1 = index.search(new ExactTerm(TERM_1));
-            r.r2 = index.search(new ExactTerm(TERM_2));
-            r.r3 = index.search(new ExactTerm(TERM_3));
+            r.r1 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_1)));
+            r.r2 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_2)));
+            r.r3 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_3)));
         }
 
     }
 
     @JCStressTest
     @Description("Two threads could concurrently delete the same value")
-    @Outcome(id = "\\[\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentDeleteValueTest {
 
@@ -99,13 +99,13 @@ public class VersionedTermIndexConcurrencyTest {
 
         @Arbiter
         public void arbiter(L_Result r) {
-            r.r1 = index.search(new ExactTerm(TERM_1));
+            r.r1 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_1)));
         }
     }
 
     @JCStressTest
     @Description("Two threads could concurrently delete different values")
-    @Outcome(id = "\\[\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentDeleteSeveralValuesTest {
 
@@ -128,13 +128,13 @@ public class VersionedTermIndexConcurrencyTest {
 
         @Arbiter
         public void arbiter(L_Result r) {
-            r.r1 = index.search(new ExactTerm(TERM_1));
+            r.r1 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_1)));
         }
     }
 
     @JCStressTest
     @Description("Two threads should retrieve the same result during the search")
-    @Outcome(id = "\\[value_1\\], \\[value_1\\]", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "value_1, value_1", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentSearchTest {
 
@@ -146,12 +146,12 @@ public class VersionedTermIndexConcurrencyTest {
 
         @Actor
         public void actor1(LL_Result r) {
-            r.r1 = index.search(new ExactTerm(TERM_1));
+            r.r1 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_1)));
         }
 
         @Actor
         public void actor2(LL_Result r) {
-            r.r2 = index.search(new ExactTerm(TERM_1));
+            r.r2 = CollectionsUtil.makeSortedString(index.search(new ExactTerm(TERM_1)));
         }
     }
 

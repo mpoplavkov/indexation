@@ -1,9 +1,7 @@
 package ru.mpoplavkov.indexation.util;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public final class CollectionsUtil {
     private CollectionsUtil() {
@@ -18,5 +16,16 @@ public final class CollectionsUtil {
     @SafeVarargs
     public static <T> Set<T> createSet(T... ts) {
         return new HashSet<>(Arrays.asList(ts));
+    }
+
+    public static <T> String makeSortedString(Collection<T> collection, String separator) {
+        return collection.stream()
+                .sorted()
+                .map(Objects::toString)
+                .collect(Collectors.joining(separator));
+    }
+
+    public static <T> String makeSortedString(Collection<T> collection) {
+        return makeSortedString(collection, "");
     }
 }
