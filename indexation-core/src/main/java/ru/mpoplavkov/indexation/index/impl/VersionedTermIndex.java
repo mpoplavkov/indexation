@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,15 +40,25 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
     /**
      * The underlying storage.
      */
-    private final KeyMultiValueStorage<Term, WrappedValue<V>> kmvStorage =
-            new ConcurrentKeyMultiWeakValueStorage<>();
+    private final KeyMultiValueStorage<Term, WrappedValue<V>> kmvStorage;
 
     /**
      * Association between values and their actual versions in the storage.
      * During the search, only values with actual versions are retrieved
      * from the storage.
      */
-    private final Map<V, WrappedValue<V>> actualValues = new ConcurrentHashMap<>();
+    private final Map<V, WrappedValue<V>> actualValues;
+
+    public VersionedTermIndex(ScheduledExecutorService storageCleanupExecutorService,
+                              int initialCapacity) {
+        kmvStorage = new ConcurrentKeyMultiWeakValueStorage<>(storageCleanupExecutorService);
+        actualValues = new ConcurrentHashMap<>(initialCapacity);
+    }
+
+    public VersionedTermIndex() {
+        kmvStorage = new ConcurrentKeyMultiWeakValueStorage<>();
+        actualValues = new ConcurrentHashMap<>();
+    }
 
     /**
      * Atomically associates given terms with the value in the storage.
@@ -55,10 +66,6 @@ public class VersionedTermIndex<V> implements TermIndex<V> {
      * of the {@link VersionedTermIndex.WrappedValue} is inserted into the
      * {@link VersionedTermIndex#actualValues}, which is the last
      * operation in this method.
-     * <br>
-     * Only one parallel update for the concrete value is allowed. If two
-     * or more threads will index the same value, then the behaviour is
-     * not determined.
      *
      * @param value given value.
      * @param terms given terms.

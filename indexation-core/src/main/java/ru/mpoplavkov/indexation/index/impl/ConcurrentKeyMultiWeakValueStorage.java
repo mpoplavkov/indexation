@@ -6,7 +6,6 @@ import com.google.common.cache.RemovalListener;
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
 
-import java.io.Closeable;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -26,9 +25,12 @@ import java.util.logging.Level;
  * @param <V> type of the value.
  */
 @Log
-class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
+public class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K, V> {
 
-    private final Map<K, Cache<V, K>> storage = new ConcurrentHashMap<>();
+    private final static int DEFAULT_CAPACITY = 16;
+    private final static int DEFAULT_CLEAN_UP_DELAY_SECONDS = 30;
+
+    private final Map<K, Cache<V, K>> storage;
 
     /**
      * Scheduled executor service to perform cleanup operations on all the underlying
@@ -36,21 +38,39 @@ class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueStorage<K
      * or read operations on this cache, which is not always the case in this storage.
      * Therefore, a scheduler is needed - to schedule cleanups manually.
      */
-    private final ScheduledExecutorService cleanupExecutorService =
-            Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService cleanupExecutorService;
 
     /**
      * Creates the storage and schedules cleanup operation with the given delay.
      *
-     * @param cleanUpDelay the delay between two full cleanups.
-     * @param unit         the time unit of the cleanUpDelay parameter
+     * @param cleanupExecutorService executor service to schedule cleanups on.
+     * @param cleanUpDelay           the delay between two full cleanups.
+     * @param unit                   the time unit of the cleanUpDelay parameter
+     * @param initialCapacity        initial capacity of the storage.
      */
-    public ConcurrentKeyMultiWeakValueStorage(long cleanUpDelay, TimeUnit unit) {
+    public ConcurrentKeyMultiWeakValueStorage(ScheduledExecutorService cleanupExecutorService,
+                                              long cleanUpDelay,
+                                              TimeUnit unit,
+                                              int initialCapacity) {
+        this.storage = new ConcurrentHashMap<>(initialCapacity);
+        this.cleanupExecutorService = cleanupExecutorService;
         cleanupExecutorService.scheduleWithFixedDelay(this::cleanUpAllCaches, cleanUpDelay, cleanUpDelay, unit);
     }
 
+    public ConcurrentKeyMultiWeakValueStorage(ScheduledExecutorService cleanupExecutorService) {
+        this(cleanupExecutorService, DEFAULT_CLEAN_UP_DELAY_SECONDS, TimeUnit.SECONDS, DEFAULT_CAPACITY);
+    }
+
+    public ConcurrentKeyMultiWeakValueStorage(long cleanUpDelay, TimeUnit unit, int initialCapacity) {
+        this(Executors.newSingleThreadScheduledExecutor(), cleanUpDelay, unit, initialCapacity);
+    }
+
+    public ConcurrentKeyMultiWeakValueStorage(int initialCapacity) {
+        this(DEFAULT_CLEAN_UP_DELAY_SECONDS, TimeUnit.SECONDS, initialCapacity);
+    }
+
     public ConcurrentKeyMultiWeakValueStorage() {
-        this(30, TimeUnit.SECONDS);
+        this(DEFAULT_CAPACITY);
     }
 
     @Override

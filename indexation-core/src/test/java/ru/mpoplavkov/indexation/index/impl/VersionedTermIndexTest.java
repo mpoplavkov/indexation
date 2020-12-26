@@ -12,7 +12,7 @@ import ru.mpoplavkov.indexation.model.term.WordTerm;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static ru.mpoplavkov.indexation.TestUtils.createSet;
+import static ru.mpoplavkov.indexation.util.CollectionsUtil.createSet;
 
 class VersionedTermIndexTest {
 
