@@ -16,7 +16,7 @@ import java.nio.file.Path;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static ru.mpoplavkov.indexation.TestUtils.getFilePathFromResources;
+import static ru.mpoplavkov.indexation.util.TestUtil.getFilePathFromResources;
 import static ru.mpoplavkov.indexation.util.CollectionsUtil.createSet;
 
 class IndexUpdateFileChangeEventTriggerTest {

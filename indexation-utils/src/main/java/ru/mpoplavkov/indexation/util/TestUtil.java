@@ -1,17 +1,13 @@
-package ru.mpoplavkov.indexation;
+package ru.mpoplavkov.indexation.util;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
-public final class TestUtils {
+public final class TestUtil {
 
-    private TestUtils() {
+    private TestUtil() {
     }
 
     public static String getFileContentFromResources(String path) throws IOException {
@@ -25,7 +21,7 @@ public final class TestUtils {
     }
 
     public static Path getFilePathFromResources(String path) {
-        ClassLoader classLoader = TestUtils.class.getClassLoader();
+        ClassLoader classLoader = TestUtil.class.getClassLoader();
         return new File(classLoader.getResource(path).getFile()).toPath();
     }
 
