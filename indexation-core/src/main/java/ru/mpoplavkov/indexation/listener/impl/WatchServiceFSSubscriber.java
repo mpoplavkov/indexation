@@ -11,7 +11,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -22,18 +25,18 @@ import java.util.stream.Collectors;
 @Log
 public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
 
-    private final List<FSEventTrigger> triggers;
+    private final FSEventTrigger trigger;
 
     /**
      * Creates the subscriber.
      *
      * @param pathFilter filter for files to check while registration and processing.
-     * @param triggers   triggers to apply for found events.
+     * @param trigger    trigger to apply for found events.
      * @throws IOException if an I/O error occurs.
      */
-    public WatchServiceFSSubscriber(PathFilter pathFilter, FSEventTrigger... triggers) throws IOException {
+    public WatchServiceFSSubscriber(PathFilter pathFilter, FSEventTrigger trigger) throws IOException {
         super(pathFilter);
-        this.triggers = Arrays.asList(triggers);
+        this.trigger = trigger;
     }
 
     /**
@@ -57,9 +60,7 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
         }
 
         // user defined processing
-        for (FSEventTrigger trigger : triggers) {
-            trigger.onEvent(event);
-        }
+        trigger.onEvent(event);
     }
 
     private void directoryEventSubscriberSpecificProcessing(FileSystemEvent event) throws IOException {
