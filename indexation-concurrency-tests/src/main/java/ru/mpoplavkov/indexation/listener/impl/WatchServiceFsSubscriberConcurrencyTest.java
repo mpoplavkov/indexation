@@ -28,6 +28,9 @@ import java.util.stream.Stream;
 
 public class WatchServiceFsSubscriberConcurrencyTest {
 
+    // WatchService creates an internal executor service.
+    // To not overflow the system with threads, reuse the same one among all
+    // subscribers.
     private static final WatchService watcher = createWatchService();
 
     private static final Path ROOT_DIR = createTempDir("root_dir");
