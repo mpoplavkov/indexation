@@ -331,29 +331,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             log.info(() -> String.format("Some events occurred for directory '%s'", FileUtil.getCanonicalPath(dir)));
             List<WatchEvent<?>> events = key.pollEvents();
             for (WatchEvent<?> event : events) {
-                WatchEvent.Kind<?> kind = event.kind();
-
-                // TODO: deal with it
-                if (kind == OVERFLOW) {
-                    log.severe("Overflow occurred");
-                    continue;
-                }
-
-                @SuppressWarnings("unchecked")
-                WatchEvent<Path> ev = (WatchEvent<Path>) event;
-                Path changedPath = dir.resolve(ev.context());
-                if (!pathFilter.filter(changedPath)) {
-                    continue;
-                }
-
-                boolean needToHandleCreate = ev.kind() == ENTRY_CREATE &&
-                        dirsResponsibleForNewFiles.contains(dir);
-                Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
-                if (needToHandleCreate || pathsTrackedByThisDir.contains(changedPath)) {
-
-                    FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedPath);
-                    onEvent(fsEvent);
-                }
+                handleWatchEvent(dir, event);
             }
         } finally {
             try {
@@ -370,6 +348,38 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             } finally {
                 lock.unlock();
             }
+        }
+    }
+
+    /**
+     * Processes event caught by the watcher.
+     *
+     * @param dir   the directory where the event occurred.
+     * @param event occurred event.
+     */
+    void handleWatchEvent(Path dir, WatchEvent<?> event) {
+        WatchEvent.Kind<?> kind = event.kind();
+
+        // TODO: deal with it
+        if (kind == OVERFLOW) {
+            log.severe("Overflow occurred");
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        WatchEvent<Path> ev = (WatchEvent<Path>) event;
+        Path changedPath = dir.resolve(ev.context());
+        if (!pathFilter.filter(changedPath)) {
+            return;
+        }
+
+        boolean needToHandleCreate = ev.kind() == ENTRY_CREATE &&
+                dirsResponsibleForNewFiles.contains(dir);
+        Set<Path> pathsTrackedByThisDir = trackedPaths.getOrDefault(dir, Collections.emptySet());
+        if (needToHandleCreate || pathsTrackedByThisDir.contains(changedPath)) {
+
+            FileSystemEvent fsEvent = watchEventToFSEvent(ev.kind(), changedPath);
+            onEvent(fsEvent);
         }
     }
 
