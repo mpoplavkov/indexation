@@ -41,12 +41,12 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     /**
      * Mapping from watch keys to paths tracked by those keys.
      */
-    final Map<WatchKey, Path> watchKeysToDirs = new ConcurrentHashMap<>();
+    private final Map<WatchKey, Path> watchKeysToDirs = new ConcurrentHashMap<>();
 
     /**
      * Mapping from paths to their watch keys.
      */
-    final Map<Path, WatchKey> dirsToWatchKeys = new ConcurrentHashMap<>();
+    private final Map<Path, WatchKey> dirsToWatchKeys = new ConcurrentHashMap<>();
 
     /**
      * Map from tracked paths to their registered children.
