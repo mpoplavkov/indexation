@@ -3,7 +3,9 @@ package ru.mpoplavkov.indexation.listener.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.openjdk.jcstress.annotations.*;
+import org.openjdk.jcstress.infra.results.LLLLLL_Result;
 import org.openjdk.jcstress.infra.results.LLLLL_Result;
+import org.openjdk.jcstress.infra.results.LLLL_Result;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.filter.impl.AcceptAllPathFilter;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
@@ -45,7 +47,7 @@ public class WatchServiceFsSubscriberConcurrencyTest {
     @Description("Two threads could concurrently subscribe to different directories")
     @Outcome(id = "11f;12f, 21f;22f, 11f;12f;1d;21f;22f;2d, , ", expect = Expect.ACCEPTABLE)
     @State
-    public static class ConcurrentIndexOfDifferentValuesTest {
+    public static class ConcurrentSubscriptionOnDifferentDirsTest {
 
         List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
         WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
@@ -64,21 +66,250 @@ public class WatchServiceFsSubscriberConcurrencyTest {
 
         @Arbiter
         public void arbiter(LLLLL_Result r) {
-            Set<String> dir1TrackedPaths = subscriber.trackedPaths.get(DIR_1).stream()
-                    .map(WatchServiceFsSubscriberConcurrencyTest::getFileNameFromTmpPath)
-                    .collect(Collectors.toSet());
-            Set<String> dir2TrackedPaths = subscriber.trackedPaths.get(DIR_2).stream()
-                    .map(WatchServiceFsSubscriberConcurrencyTest::getFileNameFromTmpPath)
-                    .collect(Collectors.toSet());
-
             Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
                     prettyResultsFromTrackedEvents(trackedEvents);
 
-            r.r1 = CollectionsUtil.makeSortedString(dir1TrackedPaths, ";");
-            r.r2 = CollectionsUtil.makeSortedString(dir2TrackedPaths, ";");
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedPaths(subscriber, DIR_2);
             r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
             r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
             r.r5 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to the same directory")
+    @Outcome(id = "11f;12f, 11f;12f;1d, , ", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentSubscriptionOnTheSameDirTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(DIR_1);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_1);
+        }
+
+        @Arbiter
+        public void arbiter(LLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to different directories one of which is a subdirectory of another")
+    @Outcome(id = "1d;2d, 11f;12f, 21f;22f, 11f;12f;1d;21f;22f;2d;root_dir, , ", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentSubscriptionOnSubDirsTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(ROOT_DIR);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_1);
+        }
+
+        @Arbiter
+        public void arbiter(LLLLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, ROOT_DIR);
+            r.r2 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r3 = prettyTrackedPaths(subscriber, DIR_2);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r5 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r6 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to the directory and one of its files")
+    @Outcome(id = "11f;12f, 21f, 11f;12f;1d;21f, , ", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentSubscriptionOnTheDirAndTheFileTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(DIR_1);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_2_FILE_1);
+        }
+
+        @Arbiter
+        public void arbiter(LLLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedPaths(subscriber, DIR_2);
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r5 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to the directory and one of its files")
+    @Outcome(id = "11f;12f, 11f;12f;1d, , ", expect = Expect.ACCEPTABLE)
+    @Outcome(id = "11f;12f, 11f;11f;12f;1d, , ", expect = Expect.ACCEPTABLE, desc = "the file was indexed twice")
+    @State
+    public static class ConcurrentSubscriptionOnTheDirAndItsFileTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(DIR_1);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_1_FILE_1);
+        }
+
+        @Arbiter
+        public void arbiter(LLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to different files")
+    @Outcome(id = "11f, 21f, 11f;21f, , ", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentSubscriptionOnDifferentFilesTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(DIR_1_FILE_1);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_2_FILE_1);
+        }
+
+        @Arbiter
+        public void arbiter(LLLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedPaths(subscriber, DIR_2);
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r5 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to the same file")
+    @Outcome(id = "11f, 11f, , ", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentSubscriptionOnTheSameFileTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(DIR_1_FILE_1);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_1_FILE_1);
+        }
+
+        @Arbiter
+        public void arbiter(LLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
+        }
+    }
+
+    @JCStressTest
+    @Description("Two threads could concurrently subscribe to different files from the same directory")
+    @Outcome(id = "11f;12f, 11f;12f, , ", expect = Expect.ACCEPTABLE)
+    @State
+    public static class ConcurrentSubscriptionOnDifferentFilesFromTheSameDirectoryTest {
+
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
+
+        @Actor
+        @SneakyThrows
+        public void actor1() {
+            subscriber.subscribe(DIR_1_FILE_1);
+        }
+
+        @Actor
+        @SneakyThrows
+        public void actor2() {
+            subscriber.subscribe(DIR_1_FILE_2);
+        }
+
+        @Arbiter
+        public void arbiter(LLLL_Result r) {
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = prettyTrackedPaths(subscriber, DIR_1);
+            r.r2 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
         }
     }
 
@@ -121,17 +352,11 @@ public class WatchServiceFsSubscriberConcurrencyTest {
         return path.toFile().getName().replaceFirst("\\d*$", "");
     }
 
-    private static String eventKindToString(FileSystemEvent.Kind eventKind) {
-        switch (eventKind) {
-            case ENTRY_CREATE:
-                return "C";
-            case ENTRY_MODIFY:
-                return "M";
-            case ENTRY_DELETE:
-                return "D";
-            default:
-                throw new RuntimeException("unsupported");
-        }
+    private static String prettyTrackedPaths(WatchServiceFSSubscriber subscriber, Path path) {
+        Set<String> pathTrackedPaths = subscriber.trackedPaths.get(path).stream()
+                .map(WatchServiceFsSubscriberConcurrencyTest::getFileNameFromTmpPath)
+                .collect(Collectors.toSet());
+        return CollectionsUtil.makeSortedString(pathTrackedPaths, ";");
     }
 
     private static Map<FileSystemEvent.Kind, String> prettyResultsFromTrackedEvents(List<FileSystemEvent> trackedEvents) {
