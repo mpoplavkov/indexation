@@ -87,11 +87,14 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
                 }
                 break;
             case ENTRY_DELETE:
-                Set<Path> directoryFiles =
-                        trackedPaths.get(dir)
-                                .stream()
-                                .filter(p -> !isOrWasADirectory(p))
-                                .collect(Collectors.toSet());
+                Set<Path> dirFiles = trackedPaths.get(dir);
+                if (dirFiles == null) {
+                    return;
+                }
+                Set<Path> directoryFiles = dirFiles
+                        .stream()
+                        .filter(p -> !isOrWasADirectory(p))
+                        .collect(Collectors.toSet());
                 trackedPaths.remove(dir);
                 dirsResponsibleForNewFiles.remove(dir);
                 for (Path file : directoryFiles) {
