@@ -1,10 +1,12 @@
 package ru.mpoplavkov.indexation.listener.impl;
 
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.openjdk.jcstress.annotations.*;
-import org.openjdk.jcstress.infra.results.LLLLLL_Result;
+import org.openjdk.jcstress.infra.results.LLLLL_Result;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.filter.impl.AcceptAllPathFilter;
+import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.trigger.impl.DoNothingTrigger;
 import ru.mpoplavkov.indexation.util.CollectionsUtil;
@@ -14,7 +16,11 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,12 +29,12 @@ public class WatchServiceFsSubscriberConcurrencyTest {
     private static final WatchService watcher = createWatchService();
 
     private static final Path ROOT_DIR = createTempDir("root_dir");
-    private static final Path DIR_1 = createTempDir(ROOT_DIR, "dir1");
-    private static final Path DIR_1_FILE_1 = createTempFile(DIR_1, "dir1_file1.txt");
-    private static final Path DIR_1_FILE_2 = createTempFile(DIR_1, "dir1_file2.txt");
-    private static final Path DIR_2 = createTempDir(ROOT_DIR, "dir2");
-    private static final Path DIR_2_FILE_1 = createTempFile(DIR_2, "dir2_file1.txt");
-    private static final Path DIR_2_FILE_2 = createTempFile(DIR_2, "dir2_file2.txt");
+    private static final Path DIR_1 = createTempDir(ROOT_DIR, "1d");
+    private static final Path DIR_1_FILE_1 = createTempFile(DIR_1, "11f");
+    private static final Path DIR_1_FILE_2 = createTempFile(DIR_1, "12f");
+    private static final Path DIR_2 = createTempDir(ROOT_DIR, "2d");
+    private static final Path DIR_2_FILE_1 = createTempFile(DIR_2, "21f");
+    private static final Path DIR_2_FILE_2 = createTempFile(DIR_2, "22f");
 
     private static final Set<Path> ALL_DIRS =
             CollectionsUtil.createSet(ROOT_DIR, DIR_1, DIR_2);
@@ -36,12 +42,13 @@ public class WatchServiceFsSubscriberConcurrencyTest {
             CollectionsUtil.createSet(ROOT_DIR, DIR_1, DIR_2, DIR_1_FILE_1, DIR_1_FILE_2, DIR_2_FILE_1, DIR_2_FILE_2);
 
     @JCStressTest
-    @Description("Two threads could concurrently subscribe to different directories. Checks internal state.")
-    @Outcome(id = "2, 2, 2, 2, dir1_file1.txt\\d*;dir1_file2.txt\\d*, dir2_file1.txt\\d*;dir2_file2.txt\\d*", expect = Expect.ACCEPTABLE)
+    @Description("Two threads could concurrently subscribe to different directories")
+    @Outcome(id = "11f;12f, 21f;22f, 11f;12f;1d;21f;22f;2d, , ", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentIndexOfDifferentValuesTest {
 
-        WatchServiceFSSubscriber subscriber = createSubscriber();
+        List<FileSystemEvent> trackedEvents = new CopyOnWriteArrayList<>();
+        WatchServiceFSSubscriber subscriber = createSubscriber(trackedEvents);
 
         @Actor
         @SneakyThrows
@@ -56,23 +63,23 @@ public class WatchServiceFsSubscriberConcurrencyTest {
         }
 
         @Arbiter
-        public void arbiter(LLLLLL_Result r) {
-            r.r1 = subscriber.dirsToWatchKeys.size();
-            r.r2 = subscriber.watchKeysToDirs.size();
-            r.r3 = subscriber.dirsResponsibleForNewFiles.size();
-            r.r4 = subscriber.locksMap.size();
-
-            Set<Path> dir1TrackedPaths = subscriber.trackedPaths.get(DIR_1).stream()
-                    .map(Path::getFileName)
+        public void arbiter(LLLLL_Result r) {
+            Set<String> dir1TrackedPaths = subscriber.trackedPaths.get(DIR_1).stream()
+                    .map(WatchServiceFsSubscriberConcurrencyTest::getFileNameFromTmpPath)
                     .collect(Collectors.toSet());
-            Set<Path> dir2TrackedPaths = subscriber.trackedPaths.get(DIR_2).stream()
-                    .map(Path::getFileName)
+            Set<String> dir2TrackedPaths = subscriber.trackedPaths.get(DIR_2).stream()
+                    .map(WatchServiceFsSubscriberConcurrencyTest::getFileNameFromTmpPath)
                     .collect(Collectors.toSet());
 
-            r.r5 = CollectionsUtil.makeSortedString(dir1TrackedPaths, ";");
-            r.r6 = CollectionsUtil.makeSortedString(dir2TrackedPaths, ";");
+            Map<FileSystemEvent.Kind, String> prettyTrackedEvents =
+                    prettyResultsFromTrackedEvents(trackedEvents);
+
+            r.r1 = CollectionsUtil.makeSortedString(dir1TrackedPaths, ";");
+            r.r2 = CollectionsUtil.makeSortedString(dir2TrackedPaths, ";");
+            r.r3 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_CREATE);
+            r.r4 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_MODIFY);
+            r.r5 = prettyTrackedEvents.get(FileSystemEvent.Kind.ENTRY_DELETE);
         }
-
     }
 
     @SneakyThrows
@@ -101,8 +108,53 @@ public class WatchServiceFsSubscriberConcurrencyTest {
     }
 
     @SneakyThrows
+    private static WatchServiceFSSubscriber createSubscriber(List<FileSystemEvent> trackedEvents) {
+        return new DoNotTouchFilesSubscriber(new AcceptAllPathFilter(), new TrackedTrigger(trackedEvents), watcher);
+    }
+
+    @SneakyThrows
     private static WatchServiceFSSubscriber createSubscriber() {
         return new DoNotTouchFilesSubscriber(new AcceptAllPathFilter(), new DoNothingTrigger(), watcher);
+    }
+
+    private static String getFileNameFromTmpPath(Path path) {
+        return path.toFile().getName().replaceFirst("\\d*$", "");
+    }
+
+    private static String eventKindToString(FileSystemEvent.Kind eventKind) {
+        switch (eventKind) {
+            case ENTRY_CREATE:
+                return "C";
+            case ENTRY_MODIFY:
+                return "M";
+            case ENTRY_DELETE:
+                return "D";
+            default:
+                throw new RuntimeException("unsupported");
+        }
+    }
+
+    private static Map<FileSystemEvent.Kind, String> prettyResultsFromTrackedEvents(List<FileSystemEvent> trackedEvents) {
+        Map<FileSystemEvent.Kind, String> result = new HashMap<>();
+        // defaults
+        result.put(FileSystemEvent.Kind.ENTRY_CREATE, "");
+        result.put(FileSystemEvent.Kind.ENTRY_MODIFY, "");
+        result.put(FileSystemEvent.Kind.ENTRY_DELETE, "");
+
+
+        Map<FileSystemEvent.Kind, List<FileSystemEvent>> kindsToPaths = trackedEvents
+                .stream()
+                .collect(Collectors.groupingBy(FileSystemEvent::getKind));
+
+        kindsToPaths.forEach((kind, paths) -> {
+            List<String> pathNames = paths.stream()
+                    .map(FileSystemEvent::getEntry)
+                    .map(WatchServiceFsSubscriberConcurrencyTest::getFileNameFromTmpPath)
+                    .collect(Collectors.toList());
+            result.put(kind, CollectionsUtil.makeSortedString(pathNames, ";"));
+        });
+
+        return result;
     }
 
     /**
@@ -141,6 +193,16 @@ public class WatchServiceFsSubscriberConcurrencyTest {
                 return CollectionsUtil.createSet(DIR_2_FILE_1, DIR_2_FILE_2).stream();
             }
             return Stream.empty();
+        }
+    }
+
+    @RequiredArgsConstructor
+    private static class TrackedTrigger implements FSEventTrigger {
+        private final List<FileSystemEvent> trackedEvents;
+
+        @Override
+        public void onEvent(FileSystemEvent fileSystemEvent) throws IOException {
+            trackedEvents.add(fileSystemEvent);
         }
     }
 }
