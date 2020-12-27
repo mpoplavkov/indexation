@@ -2,7 +2,7 @@ package ru.mpoplavkov.indexation.listener.impl;
 
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
-import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import ru.mpoplavkov.indexation.util.RetryUtil;

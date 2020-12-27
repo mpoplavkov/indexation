@@ -3,12 +3,13 @@ package ru.mpoplavkov.indexation.listener.impl;
 import org.junit.jupiter.api.Test;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
-import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.model.term.WordTerm;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
 import ru.mpoplavkov.indexation.text.transformer.TermsTransformer;
+import ru.mpoplavkov.indexation.trigger.impl.IndexUpdateFileChangeEventTrigger;
 
 import java.io.IOException;
 import java.nio.file.Path;

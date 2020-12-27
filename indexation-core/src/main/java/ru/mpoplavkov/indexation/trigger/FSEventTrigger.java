@@ -1,9 +1,8 @@
-package ru.mpoplavkov.indexation.listener;
+package ru.mpoplavkov.indexation.trigger;
 
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
 public interface FSEventTrigger {
 

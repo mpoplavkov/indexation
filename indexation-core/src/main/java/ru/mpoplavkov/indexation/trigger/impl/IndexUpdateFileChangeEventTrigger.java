@@ -1,10 +1,10 @@
-package ru.mpoplavkov.indexation.listener.impl;
+package ru.mpoplavkov.indexation.trigger.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.index.TermIndex;
-import ru.mpoplavkov.indexation.listener.FSEventTrigger;
+import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
 import ru.mpoplavkov.indexation.model.term.Term;
 import ru.mpoplavkov.indexation.text.extractor.TermsExtractor;
