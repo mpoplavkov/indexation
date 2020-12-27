@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
@@ -40,12 +41,12 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     /**
      * Mapping from watch keys to paths tracked by those keys.
      */
-    private final Map<WatchKey, Path> watchKeysToDirs = new ConcurrentHashMap<>();
+    final Map<WatchKey, Path> watchKeysToDirs = new ConcurrentHashMap<>();
 
     /**
      * Mapping from paths to their watch keys.
      */
-    private final Map<Path, WatchKey> dirsToWatchKeys = new ConcurrentHashMap<>();
+    final Map<Path, WatchKey> dirsToWatchKeys = new ConcurrentHashMap<>();
 
     /**
      * Map from tracked paths to their registered children.
@@ -78,11 +79,16 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      * Initializes the subscriber base.
      *
      * @param pathFilter filter for paths to check while subscription and processing.
+     * @param watcher    watch service to listen for events in the file system.
      * @throws IOException if an I/O error occurs.
      */
-    public WatchServiceFSSubscriberBase(PathFilter pathFilter) throws IOException {
+    public WatchServiceFSSubscriberBase(PathFilter pathFilter, WatchService watcher) throws IOException {
         this.pathFilter = pathFilter;
-        watcher = FileSystems.getDefault().newWatchService();
+        this.watcher = watcher;
+    }
+
+    public WatchServiceFSSubscriberBase(PathFilter pathFilter) throws IOException {
+        this(pathFilter, FileSystems.getDefault().newWatchService());
     }
 
     /**
@@ -103,7 +109,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
             return;
         }
 
-        if (Files.isDirectory(canonicalPath)) {
+        if (isDirectory(canonicalPath)) {
             subscribeInner(canonicalPath, Optional.empty());
         } else {
             Path parent = canonicalPath.getParent();
@@ -159,7 +165,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     public void unsubscribe(Path path) throws IOException {
         Path canonicalPath = FileUtil.toCanonicalPath(path);
         checkPathExists(canonicalPath);
-        if (Files.isDirectory(canonicalPath)) {
+        if (isDirectory(canonicalPath)) {
             unsubscribeInner(canonicalPath, Optional.empty());
         } else {
             Path parent = canonicalPath.getParent();
@@ -200,7 +206,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
                 cancelWatchKeyFor(dir);
                 // unsubscribe all child directories
                 for (Path path : children) {
-                    if (Files.isDirectory(path)) {
+                    if (isDirectory(path)) {
                         unsubscribeInner(path, Optional.empty());
                     }
                 }
@@ -221,7 +227,7 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     }
 
     private void checkPathExists(Path path) throws FileNotFoundException {
-        if (!Files.exists(path)) {
+        if (!pathExists(path)) {
             throw new FileNotFoundException(
                     String.format("Path '%s' doesn't exist", FileUtil.getCanonicalPath(path))
             );
@@ -405,6 +411,18 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
 
     private Lock getLockFor(Path path) {
         return locksMap.computeIfAbsent(path, p -> new ReentrantLock());
+    }
+
+    protected boolean isDirectory(Path path) {
+        return Files.isDirectory(path);
+    }
+
+    protected boolean pathExists(Path path) {
+        return Files.exists(path);
+    }
+
+    protected Stream<Path> listChildren(Path path) throws IOException {
+        return Files.list(path);
     }
 
 }

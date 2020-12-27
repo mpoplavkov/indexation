@@ -61,6 +61,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
             <groupId>org.openjdk.jcstress</groupId>
             <artifactId>jcstress-core</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <properties>

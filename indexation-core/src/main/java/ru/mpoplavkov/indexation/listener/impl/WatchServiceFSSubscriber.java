@@ -2,13 +2,12 @@ package ru.mpoplavkov.indexation.listener.impl;
 
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.filter.PathFilter;
-import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
+import ru.mpoplavkov.indexation.trigger.FSEventTrigger;
 import ru.mpoplavkov.indexation.util.RetryUtil;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
 import java.util.Collections;
@@ -32,8 +31,16 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
      *
      * @param pathFilter filter for files to check while registration and processing.
      * @param trigger    trigger to apply for found events.
+     * @param watcher    watch service to listen for events in the file system.
      * @throws IOException if an I/O error occurs.
      */
+    public WatchServiceFSSubscriber(PathFilter pathFilter,
+                                    FSEventTrigger trigger,
+                                    WatchService watcher) throws IOException {
+        super(pathFilter, watcher);
+        this.trigger = trigger;
+    }
+
     public WatchServiceFSSubscriber(PathFilter pathFilter, FSEventTrigger trigger) throws IOException {
         super(pathFilter);
         this.trigger = trigger;
@@ -67,15 +74,12 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
         Path dir = event.getEntry();
         switch (event.getKind()) {
             case ENTRY_CREATE:
-                Path parentDir = dir.getParent();
-                if (parentDir != null) {
-                    trackedPaths
-                            .computeIfAbsent(parentDir, p -> ConcurrentHashMap.newKeySet())
-                            .add(dir);
-                }
-                List<Path> children = Files.list(dir).collect(Collectors.toList());
+                List<Path> children = listChildren(dir).collect(Collectors.toList());
                 for (Path child : children) {
-                    if (Files.isDirectory(child)) {
+                    if (isDirectory(child)) {
+                        trackedPaths
+                                .computeIfAbsent(dir, p -> ConcurrentHashMap.newKeySet())
+                                .add(child);
                         subscribeInner(child, Optional.empty());
                     } else {
                         onEventInner(new FileSystemEvent(FileSystemEvent.Kind.ENTRY_CREATE, child));
@@ -135,6 +139,6 @@ public class WatchServiceFSSubscriber extends WatchServiceFSSubscriberBase {
      * @return true if is or was a directory.
      */
     private boolean isOrWasADirectory(Path path) {
-        return Files.isDirectory(path) || trackedPaths.containsKey(path);
+        return isDirectory(path) || trackedPaths.containsKey(path);
     }
 }
