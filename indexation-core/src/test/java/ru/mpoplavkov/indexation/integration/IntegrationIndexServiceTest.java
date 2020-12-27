@@ -24,7 +24,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static ru.mpoplavkov.indexation.util.TestUtil.getFilePathFromResources;
+import static ru.mpoplavkov.indexation.TestUtils.getFilePathFromResources;
 import static ru.mpoplavkov.indexation.util.CollectionsUtil.createSet;
 
 @Disabled("integration tests")

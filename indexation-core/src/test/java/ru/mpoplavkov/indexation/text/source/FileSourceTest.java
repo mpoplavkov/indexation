@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static ru.mpoplavkov.indexation.util.TestUtil.getFileContentFromResources;
-import static ru.mpoplavkov.indexation.util.TestUtil.getFilePathFromResources;
+import static ru.mpoplavkov.indexation.TestUtils.getFileContentFromResources;
+import static ru.mpoplavkov.indexation.TestUtils.getFilePathFromResources;
 
 class FileSourceTest {
 
