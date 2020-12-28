@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -764,9 +765,20 @@ public class WatchServiceFsSubscriberConcurrencyTest {
     private static class TrackedTrigger implements FSEventTrigger {
         private final List<FileSystemEvent> trackedEvents;
 
+        private final Set<Path> currentProcessingPaths = ConcurrentHashMap.newKeySet();
+
+        @SneakyThrows
         @Override
         public void onEvent(FileSystemEvent fileSystemEvent) {
+            Path path = fileSystemEvent.getEntry();
+
+            if (currentProcessingPaths.contains(path)) {
+                throw new Throwable("Concurrent processing of the same path should not be allowed");
+            }
+
+            currentProcessingPaths.add(path);
             trackedEvents.add(fileSystemEvent);
+            currentProcessingPaths.remove(path);
         }
     }
 }
