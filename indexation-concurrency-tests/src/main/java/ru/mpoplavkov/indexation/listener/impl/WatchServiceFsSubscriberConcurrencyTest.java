@@ -146,7 +146,7 @@ public class WatchServiceFsSubscriberConcurrencyTest {
     }
 
     @JCStressTest
-    @Description("Two threads could concurrently subscribe to the directory and one of its files")
+    @Description("Two threads could concurrently subscribe to the directory and the file")
     @Outcome(id = "11f;12f, 21f, 11f;12f;1d;21f, , ", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentSubscriptionOnTheDirAndTheFileTest {
@@ -356,7 +356,7 @@ public class WatchServiceFsSubscriberConcurrencyTest {
     }
 
     @JCStressTest
-    @Description("Two threads could concurrently unsubscribe from the same directory")
+    @Description("Two threads could concurrently unsubscribe from different directories")
     @Outcome(id = ", , 11f;12f;1d;21f;22f;2d, , 11f;12f;1d;21f;22f;2d", expect = Expect.ACCEPTABLE)
     @State
     public static class ConcurrentUnsubscriptionFromDifferentDirsTest {
