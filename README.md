@@ -28,6 +28,20 @@ After that, the API will be available on the ```localhost:8080```.
 ### Run integration tests
 Integration tests are disabled in order to not execute them during the project build, because they take a long time to run.
 To enable them, go to ```src/test/java/ru/mpoplavkov/indexation/integration/IntegrationIndexServiceTest.java``` and remove the ```@Disabled``` junit annotation.
+After that, integration tests will run at the *test* maven phase: 
+```
+mvn clean test
+```
+
+### Run concurrency tests
+There is a separate module for concurrency tests in the project - *indexation-concurrency-tests*. The [jcstress](https://openjdk.java.net/projects/code-tools/jcstress/) library is used for concurrency tests.
+
+To run them, do the following from the project root:
+```
+mvn -pl indexation-concurrency-tests clean verify
+java -jar indexation-concurrency-tests/target/jcstress.jar -r dir_for_report
+```
+This will execute concurrency tests and place the generated test report *index.html* in the *dir_for_report* directory.
 
 ## Overview of the API
 The current client provides an HTTP API:
@@ -50,7 +64,6 @@ The current client provides an HTTP API:
 
 * implement TODOs
 * improve tests quality using different junit features
-* add tests on concurrency
 
 ## Possible features
 
