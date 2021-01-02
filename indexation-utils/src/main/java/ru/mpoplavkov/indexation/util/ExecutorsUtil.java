@@ -1,11 +1,28 @@
 package ru.mpoplavkov.indexation.util;
 
+import lombok.RequiredArgsConstructor;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ExecutorsUtil {
     private ExecutorsUtil() {
+    }
+
+    @RequiredArgsConstructor
+    public static class DaemonThreadFactory implements ThreadFactory {
+
+        private final String namePrefix;
+        private final AtomicInteger threadsCount = new AtomicInteger(0);
+
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            t.setName(String.format("%s-%d", namePrefix, threadsCount.incrementAndGet()));
+            return t;
+        }
     }
 
     /**

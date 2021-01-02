@@ -3,10 +3,10 @@ package ru.mpoplavkov.indexation.listener.impl;
 import com.google.common.collect.ImmutableMap;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
-import org.jetbrains.annotations.NotNull;
 import ru.mpoplavkov.indexation.filter.PathFilter;
 import ru.mpoplavkov.indexation.listener.FileSystemSubscriber;
 import ru.mpoplavkov.indexation.model.fs.FileSystemEvent;
+import ru.mpoplavkov.indexation.util.ExecutorsUtil;
 import ru.mpoplavkov.indexation.util.FileUtil;
 
 import java.io.FileNotFoundException;
@@ -16,8 +16,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -80,9 +78,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
      *
      * @param pathFilter filter for paths to check while subscription and processing.
      * @param watcher    watch service to listen for events in the file system.
-     * @throws IOException if an I/O error occurs.
      */
-    public WatchServiceFSSubscriberBase(PathFilter pathFilter, WatchService watcher) throws IOException {
+    public WatchServiceFSSubscriberBase(PathFilter pathFilter, WatchService watcher) {
         this.pathFilter = pathFilter;
         this.watcher = watcher;
     }
@@ -396,17 +393,8 @@ public abstract class WatchServiceFSSubscriberBase implements FileSystemSubscrib
     }
 
     private ExecutorService createListenerExecutorService(int parallelism) {
-        return Executors.newFixedThreadPool(parallelism, new ThreadFactory() {
-            private final AtomicInteger count = new AtomicInteger(0);
-
-            @Override
-            public Thread newThread(@NotNull Runnable r) {
-                String threadName = String.format("listener-%d", count.incrementAndGet());
-                Thread thread = new Thread(r, threadName);
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
+        return Executors.newFixedThreadPool(parallelism,
+                new ExecutorsUtil.DaemonThreadFactory("subscriber"));
     }
 
     private Lock getLockFor(Path path) {

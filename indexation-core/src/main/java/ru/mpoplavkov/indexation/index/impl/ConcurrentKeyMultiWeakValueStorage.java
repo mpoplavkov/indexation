@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import lombok.extern.java.Log;
 import ru.mpoplavkov.indexation.index.KeyMultiValueStorage;
+import ru.mpoplavkov.indexation.util.ExecutorsUtil;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -62,7 +63,11 @@ public class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueSt
     }
 
     public ConcurrentKeyMultiWeakValueStorage(long cleanUpDelay, TimeUnit unit, int initialCapacity) {
-        this(Executors.newSingleThreadScheduledExecutor(), cleanUpDelay, unit, initialCapacity);
+        this(Executors.newSingleThreadScheduledExecutor(new ExecutorsUtil.DaemonThreadFactory("storage-cleaner")),
+                cleanUpDelay,
+                unit,
+                initialCapacity
+        );
     }
 
     public ConcurrentKeyMultiWeakValueStorage(int initialCapacity) {
