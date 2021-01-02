@@ -1,6 +1,4 @@
 # Indexation
-JetBrains test assignment.
-
 The repository contains a library for text files indexation, and a simple HTTP client for interacting with it. 
 The library allows to subscribe to various files and directories in the file system and execute queries to retrieve a set of files that meet the query criteria. 
 The library puts all subscribed entities into the index, monitors them and updates according to events from the file system.

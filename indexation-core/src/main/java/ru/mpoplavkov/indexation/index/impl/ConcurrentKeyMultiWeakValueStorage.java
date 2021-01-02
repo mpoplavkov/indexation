@@ -75,16 +75,25 @@ public class ConcurrentKeyMultiWeakValueStorage<K, V> implements KeyMultiValueSt
 
     @Override
     public void put(K key, V value) {
-        Cache<V, K> associatedCache = storage.computeIfAbsent(key, k -> newWeakCache());
-        associatedCache.put(value, key);
+        storage.compute(key, (k, cache) -> {
+            Cache<V, K> result;
+            if (cache == null) {
+                result = newWeakCache();
+            } else {
+                result = cache;
+            }
+            result.put(value, key);
+            return result;
+        });
     }
 
     @Override
     public void delete(K key, V value) {
-        Cache<V, K> associatedCache = storage.get(key);
-        if (associatedCache != null) {
-            associatedCache.invalidate(value);
-        }
+        storage.computeIfPresent(key, (k, cache) -> {
+                    cache.invalidate(value);
+                    return cache;
+                }
+        );
     }
 
     @Override
